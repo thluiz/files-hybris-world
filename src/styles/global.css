@@ -1,0 +1,157 @@
+/* Paleta herdada do hotsite da Metron (creme do letterbox da key art). */
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/fonts/Cinzel-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Cinzel';
+  src: url('/fonts/Cinzel-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --cream: #cabf9d;
+  --cream-light: #ded5ba;
+  --ink: #1a120a;
+  --ink-soft: #4a3d2c;
+  --gold: #a8873f;
+  --error: #8c2f22;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  background-color: var(--cream);
+  background-image: radial-gradient(
+    ellipse 70% 60% at 50% 35%,
+    var(--cream-light) 0%,
+    var(--cream) 70%
+  );
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1.6;
+}
+
+.card {
+  width: 100%;
+  max-width: 30rem;
+  text-align: center;
+}
+
+.brand {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 2.5rem;
+}
+
+h1 {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: clamp(1.5rem, 6vw, 2.1rem);
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+.description {
+  margin: 0 0 2rem;
+  color: var(--ink-soft);
+}
+
+.rule {
+  width: 3rem;
+  height: 1px;
+  margin: 0 auto 2rem;
+  border: 0;
+  background-color: var(--gold);
+}
+
+label {
+  display: block;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 0.6rem;
+}
+
+input[name='code'] {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.28em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--ink);
+  background-color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(26, 18, 10, 0.28);
+  border-radius: 2px;
+}
+
+input[name='code']:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  background-color: rgba(255, 255, 255, 0.75);
+}
+
+button {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cream-light);
+  background-color: var(--ink);
+  border: 0;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+button:hover {
+  background-color: var(--ink-soft);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.error {
+  margin: 0 0 1.25rem;
+  padding: 0.7rem 1rem;
+  font-size: 0.92rem;
+  color: var(--error);
+  background-color: rgba(140, 47, 34, 0.09);
+  border: 1px solid rgba(140, 47, 34, 0.3);
+  border-radius: 2px;
+}
+
+.error[hidden] {
+  display: none;
+}
+
+.footnote {
+  margin: 2.5rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}

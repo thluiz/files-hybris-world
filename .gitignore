@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+
+# Segredos locais (IP_SALT)
+.dev.vars
+
+# Os códigos de acesso NUNCA entram no git — este repositório é público.
+db/seed-codes.sql
+db/codes.csv
+db/labels.txt
+
+# Os PDFs vivem no R2, não aqui.
+*.pdf

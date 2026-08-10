@@ -15,7 +15,7 @@
     "stats": "wrangler d1 execute hybris-files --remote --file=db/stats.sql"
   },
   "dependencies": {
-    "astro": "^4.16.0"
+    "astro": "^7.1.1"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241004.0",

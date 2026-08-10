@@ -1,0 +1,24 @@
+{
+  "name": "files-hybris-world",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler pages dev dist",
+    "gen:codes": "node scripts/gen-codes.mjs",
+    "db:init": "wrangler d1 execute hybris-files --remote --file=db/schema.sql",
+    "db:seed": "wrangler d1 execute hybris-files --remote --file=db/seed-codes.sql",
+    "db:init:local": "wrangler d1 execute hybris-files --local --file=db/schema.sql",
+    "db:seed:local": "wrangler d1 execute hybris-files --local --file=db/seed-codes.sql",
+    "stats": "wrangler d1 execute hybris-files --remote --file=db/stats.sql"
+  },
+  "dependencies": {
+    "astro": "^4.16.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241004.0",
+    "wrangler": "^3.80.0"
+  }
+}

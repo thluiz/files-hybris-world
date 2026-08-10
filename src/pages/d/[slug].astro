@@ -1,0 +1,61 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/global.css';
+import { FILES } from '../../../shared/files';
+
+export function getStaticPaths() {
+  return FILES.map((file) => ({
+    params: { slug: file.slug },
+    props: { file },
+  }));
+}
+
+const { file } = Astro.props;
+---
+<Layout title={`${file.title} — Metron Showrunners`}>
+  <main class="card">
+    <p class="brand">Metron Showrunners</p>
+
+    <h1>{file.title}</h1>
+    <p class="description">{file.description}</p>
+    <hr class="rule" />
+
+    <p class="error" id="error" hidden role="alert"></p>
+
+    <form method="POST" action="/api/download">
+      <input type="hidden" name="slug" value={file.slug} />
+      <label for="code">Access code</label>
+      <input
+        id="code"
+        name="code"
+        type="text"
+        required
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        maxlength="12"
+        placeholder="XXXX-XXXX"
+      />
+      <button type="submit">Download</button>
+    </form>
+
+    <p class="footnote">
+      This material is confidential and shared by invitation only.
+    </p>
+  </main>
+</Layout>
+
+<script is:inline>
+  // A página é estática, então a mensagem de erro vem pela query string que a
+  // Function anexa no redirect de volta.
+  const reason = new URLSearchParams(location.search).get('erro');
+  if (reason) {
+    const box = document.getElementById('error');
+    box.textContent =
+      reason === 'rate'
+        ? 'Too many attempts. Please wait a few minutes and try again.'
+        : 'That access code is not valid.';
+    box.hidden = false;
+    document.getElementById('code').focus();
+  }
+</script>

@@ -125,6 +125,32 @@ wrangler d1 execute hybris-files --remote \
 
 ## Estatísticas
 
+### Painel no navegador
+
+```
+https://files.hybris.world/stats/<STATS_TOKEN>
+```
+
+Mostra os totais, os downloads por arquivo e a tabela por código (quantos
+downloads, quantos dos 4 arquivos, último acesso). Códigos nunca usados
+aparecem esmaecidos.
+
+**A URL é a credencial.** O token esperado vive no secret `STATS_TOKEN`, nunca
+no código — este repositório é público. Token errado devolve `404`, não `403`,
+para não confirmar que o caminho existe.
+
+Como a página lista os códigos em claro, ela responde com `no-store`,
+`noindex` e `Referrer-Policy: no-referrer` — sem essa última, a URL secreta
+viajaria no `Referer` de qualquer link clicado a partir dela.
+
+Para trocar o token:
+
+```bash
+printf 'NOVO_TOKEN' | wrangler pages secret put STATS_TOKEN --project-name=files-hybris-world
+```
+
+### Pela linha de comando
+
 ```bash
 npm run stats
 ```

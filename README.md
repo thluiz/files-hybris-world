@@ -34,43 +34,58 @@ Os 4 arquivos e seus slugs vivem em [`shared/files.ts`](shared/files.ts) — é 
 - Cloudflare Pages + Pages Functions
 - R2 (arquivos) e D1 (códigos + log)
 
-## Setup inicial
+## A conta da Cloudflare
 
-Uma vez só, com `wrangler login` feito.
+Tudo vive na conta `Watchyourhybris@gmail.com's Account`
+(`e8a97d34c66d7538dddf6603cf0089ee`) — a mesma da zona `hybris.world` e dos dois
+hotsites da Metron.
+
+Config de Pages **não aceita** `account_id` no `wrangler.toml`, e a credencial
+enxerga mais de uma conta. Então todo comando local precisa da variável:
 
 ```bash
-# 1. Bucket privado e upload dos PDFs
+export CLOUDFLARE_ACCOUNT_ID=e8a97d34c66d7538dddf6603cf0089ee   # bash
+$env:CLOUDFLARE_ACCOUNT_ID = 'e8a97d34c66d7538dddf6603cf0089ee' # pwsh
+```
+
+Sem ela o wrangler para com *"More than one account available"*.
+
+## Setup inicial
+
+Já feito, registrado aqui para reconstrução. Requer `wrangler login`.
+
+```bash
+# 1. Banco — copie o database_id devolvido para o wrangler.toml
+wrangler d1 create hybris-files
+npm run db:init
+
+# 2. Códigos de acesso
+npm run gen:codes
+npm run db:seed
+
+# 3. Projeto Pages e segredo
+wrangler pages project create files-hybris-world --production-branch=main
+node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))" \
+  | wrangler pages secret put IP_SALT --project-name=files-hybris-world
+
+# 4. Bucket privado e upload dos PDFs — exige R2 ativado na conta
 wrangler r2 bucket create hybris-files
 wrangler r2 object put hybris-files/hybris/01-one-pager.pdf              --file="..." --content-type=application/pdf
 wrangler r2 object put hybris-files/hybris/02-pitch-deck.pdf             --file="..." --content-type=application/pdf
 wrangler r2 object put hybris-files/hybris/03-series-bible.pdf           --file="..." --content-type=application/pdf
 wrangler r2 object put hybris-files/hybris/04-season-one-full-script.pdf --file="..." --content-type=application/pdf
-
-# 2. Banco — copie o database_id devolvido para o wrangler.toml
-wrangler d1 create hybris-files
-npm run db:init
-
-# 3. Códigos de acesso
-#    Opcional: crie db/labels.txt com um nome por linha (códigos nominais)
-npm run gen:codes
-npm run db:seed
 ```
 
-Depois, no painel do Pages (projeto `files-hybris-world`), em
-**Settings → Functions → Bindings**, para os ambientes *Production* e *Preview*:
+Os bindings `DB` e `FILES` **não** são configurados no painel: eles vivem no
+[`wrangler.toml`](wrangler.toml) e são aplicados pelo próprio deploy, graças ao
+campo `pages_build_output_dir`. Mudou binding, é só publicar de novo.
 
-| Tipo | Nome | Valor |
-|---|---|---|
-| R2 bucket | `FILES` | `hybris-files` |
-| D1 database | `DB` | `hybris-files` |
-| Secret | `IP_SALT` | qualquer string longa e aleatória |
+O `IP_SALT` é a exceção — segredo não vai para arquivo versionado, vai por
+`wrangler pages secret put` (uma vez para `production`, outra com `--env=preview`).
 
-E em **Settings → Secrets** do repositório no GitHub:
-`CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
-
-> Os bindings do `wrangler.toml` valem apenas para `wrangler pages dev` e para
-> os comandos `d1 execute` locais. Quem manda em produção é o painel, porque o
-> deploy roda `wrangler pages deploy dist`.
+Falta ainda, no painel: o custom domain `files.hybris.world` (Pages project →
+*Custom domains*), que o wrangler 3 não sabe criar. E, no GitHub,
+os secrets `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
 
 ## Desenvolvimento
 
@@ -131,7 +146,11 @@ inválidas por IP a cada 15 minutos).
 Push na `main` dispara `.github/workflows/deploy.yml`, que builda o Astro e
 publica no Cloudflare Pages.
 
-O job de deploy faz `actions/checkout` **de propósito**: o wrangler compila
-`functions/` a partir do diretório corrente, e o artifact carrega apenas o
-`dist/`. Sem o checkout, o site subiria sem a Function e todo download quebraria
-com 405.
+Dois detalhes do workflow que parecem supérfluos e não são:
+
+- O job de deploy faz `actions/checkout` **de propósito**: o wrangler compila
+  `functions/` a partir do diretório corrente, e o artifact carrega apenas o
+  `dist/`. Sem o checkout, o site subiria sem a Function e todo download
+  quebraria com 405.
+- O `pages deploy` roda **sem argumento de diretório**. O diretório vem do
+  `pages_build_output_dir`; passar os dois é erro de validação.

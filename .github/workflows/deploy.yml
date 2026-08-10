@@ -41,4 +41,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy dist --project-name=files-hybris-world --branch=main
+          # Sem argumento de diretório: ele vem do `pages_build_output_dir` no
+          # wrangler.toml, que é também o que aplica os bindings (D1, R2) no
+          # deploy. Passar o diretório junto é erro de validação.
+          command: pages deploy --project-name=files-hybris-world --branch=main

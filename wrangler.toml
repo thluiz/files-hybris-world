@@ -1,19 +1,41 @@
-# Configuração usada por `wrangler pages dev` e pelos comandos `d1 execute`
-# rodados da sua máquina.
+# Configuração do projeto Cloudflare Pages.
 #
-# ATENÇÃO: os bindings que valem em produção são os configurados no painel do
-# Cloudflare Pages (Settings → Functions → Bindings), porque o deploy roda
-# `wrangler pages deploy dist`. Se mudar um binding aqui, mude lá também.
+# Com `pages_build_output_dir` presente, os bindings abaixo são aplicados pelo
+# próprio deploy — não precisam ser configurados à mão no painel. Mudou um
+# binding aqui, basta publicar de novo.
+#
+# Consequência: `wrangler pages deploy` roda SEM argumento de diretório (ele
+# vem daqui). Passar o diretório junto é erro.
 
 name = "files-hybris-world"
+pages_build_output_dir = "dist"
 compatibility_date = "2026-08-01"
+
+# NÃO adicione `account_id` aqui: config de Pages não aceita esse campo (só a
+# de Workers). A credencial enxerga mais de uma conta, então os comandos locais
+# precisam da variável de ambiente — ver README:
+#   CLOUDFLARE_ACCOUNT_ID=e8a97d34c66d7538dddf6603cf0089ee
+# É a conta que hospeda a zona hybris.world e os hotsites da Metron.
+# No CI, o wrangler-action já recebe o accountId como input.
+
+# ── Produção ────────────────────────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "hybris-files"
+database_id = "e5989920-086d-4580-b8cc-b56265a5045b"
 
 [[r2_buckets]]
 binding = "FILES"
 bucket_name = "hybris-files"
 
-[[d1_databases]]
+# ── Preview (deploys de branch) ─────────────────────────────────────────────
+# Mesmos recursos por ora. Se um dia o preview precisar de dados descartáveis,
+# é aqui que se aponta para um bucket/banco separado.
+[[env.preview.d1_databases]]
 binding = "DB"
 database_name = "hybris-files"
-# Preencher com o id devolvido por `wrangler d1 create hybris-files`.
-database_id = "SUBSTITUIR_PELO_ID_DO_D1"
+database_id = "e5989920-086d-4580-b8cc-b56265a5045b"
+
+[[env.preview.r2_buckets]]
+binding = "FILES"
+bucket_name = "hybris-files"

@@ -1,0 +1,3 @@
+# Copie para `.dev.vars` (fora do git) para rodar `npm run preview`.
+# Em produção este valor vive como Secret no painel do Cloudflare Pages.
+IP_SALT=troque-por-uma-string-longa-e-aleatoria

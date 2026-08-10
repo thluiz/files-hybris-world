@@ -1,0 +1,19 @@
+# Configuração usada por `wrangler pages dev` e pelos comandos `d1 execute`
+# rodados da sua máquina.
+#
+# ATENÇÃO: os bindings que valem em produção são os configurados no painel do
+# Cloudflare Pages (Settings → Functions → Bindings), porque o deploy roda
+# `wrangler pages deploy dist`. Se mudar um binding aqui, mude lá também.
+
+name = "files-hybris-world"
+compatibility_date = "2026-08-01"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "hybris-files"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "hybris-files"
+# Preencher com o id devolvido por `wrangler d1 create hybris-files`.
+database_id = "SUBSTITUIR_PELO_ID_DO_D1"

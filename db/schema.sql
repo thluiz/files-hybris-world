@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS access_log (
   ok       INTEGER NOT NULL,            -- 0 = código inválido
                                         -- 1 = autorizado
                                         -- 2 = código válido, nível insuficiente
+                                        -- 3 = tentativa de token no painel /stats
+                                        --     (slug = '__stats__'), para o freio
+                                        --     de força bruta do token
   ts       TEXT NOT NULL,               -- ISO 8601 UTC
   country  TEXT,
   ip_hash  TEXT,                        -- SHA-256(salt + IP): agrupa visitante

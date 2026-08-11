@@ -212,6 +212,10 @@ downloads, quantos daqueles arquivos e o último acesso de cada código. Código
 nunca usados aparecem esmaecidos; o grupo do nível 0 (bloqueados) só aparece
 quando há alguém nele.
 
+Cada grupo dobra num accordion, com atalhos para expandir ou recolher todos. O
+HTML sai do servidor com tudo aberto e quem recolhe é o script, no
+carregamento: sem JavaScript a página continua inteira e legível, só não dobra.
+
 **A URL é a credencial.** O token esperado vive no secret `STATS_TOKEN`, nunca
 no código — este repositório é público. Token errado devolve `404`, não `403`,
 para não confirmar que o caminho existe.

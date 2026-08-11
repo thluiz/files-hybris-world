@@ -222,7 +222,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   tr.zero td { color:#8a7a63; }
   .off { color:#8c2f22; font-size:.75rem; }
   .foot { margin-top:2.5rem; font-size:.8rem; color:var(--soft); }
-  .warn { margin-top:2.5rem; padding:.9rem 1.1rem; background:rgba(140,47,34,.1);
+  .warn { margin:0 0 2rem; padding:.9rem 1.1rem; background:rgba(140,47,34,.1);
           border:1px solid #8c2f22; border-left-width:4px; border-radius:2px;
           color:#8c2f22; font-size:.9rem; }
   .warn b { letter-spacing:.02em; }
@@ -258,6 +258,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 </head>
 <body>
 <div class="wrap">
+  <p class="warn">
+    <b>Esta página mostra os códigos em claro.</b><br />
+    Quem tiver esta URL tem todos os códigos, e ela é a única credencial.<br />
+    <b>Não compartilhe a URL</b> — nem em print, nem em link, nem colada em conversa.
+  </p>
+
   <h1>Acessos aos materiais de Hybris</h1>
   <p class="sub">Atualizado em ${esc(shortDate(new Date().toISOString()))} UTC</p>
 
@@ -322,9 +328,6 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     )
     .join('')}
 
-  <p class="warn"><b>Esta página mostra os códigos em claro.</b> Quem tiver esta
-    URL tem todos os códigos, e ela é a única credencial. <b>Não compartilhe a
-    URL</b> — nem em print, nem em link, nem colada em conversa.</p>
 </div>
 
 <script>

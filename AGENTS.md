@@ -55,11 +55,13 @@ antes.
 | idem | tentativa inválida também vira linha em `access_log` (`ok = 0`) | é o sinal de que um código vazou e está circulando |
 | idem | código barrado pelo nível é `ok = 2`, fora do freio | quem tem código da lista não pode ser trancado por bater numa porta que não é dele; e a estatística separa "pediu demais" de "código vazado" |
 | idem | nível 0 devolve a mesma mensagem de código inválido | quem digita um código já bloqueado não precisa saber que ele existiu |
-| `shared/files.ts` | `canAccess()` é a única regra de autorização | reescrever a comparação em outro arquivo é como o `>=` vira `>` sem ninguém notar |
 | idem | `label` copiado para o log no momento do acesso | revogar ou renomear um código depois não reescreve a história |
 | idem | IP guardado só como `SHA-256(IP_SALT + IP)` | agrupa visitante e sustenta o freio sem reter dado pessoal em claro |
+| `shared/files.ts` | `canAccess()` é a única regra de autorização | reescrever a comparação em outro arquivo é como o `>=` vira `>` sem ninguém notar |
 | `functions/stats/[token].ts` | token errado devolve **404**, não 403 | quem chutar não descobre que a rota existe |
 | idem | comparação sem atalho de tempo | o token não pode ser descoberto caractere a caractere |
+| idem | token errado vira `ok = 3` e tranca o IP depois de 10 erros em 15 min | a entropia do token é a defesa principal, este é o fundo de rede; fica separado do `ok = 0` para não inflar o contador de códigos inválidos |
+| idem | trancado, continua respondendo **404** — nunca 429 | um 429 confirmaria a existência da rota, que é o que o 404 esconde |
 | idem | `Referrer-Policy: no-referrer` | a URL **é** o segredo; sem isso ela vaza no `Referer` de qualquer link clicado a partir da página |
 | `src/layouts/Layout.astro` | `noindex, nofollow` | material restrito não pode aparecer em buscador |
 

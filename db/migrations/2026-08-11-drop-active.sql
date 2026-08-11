@@ -1,13 +1,13 @@
--- Última etapa da troca de `active` por `level`.
+-- Last step of swapping `active` for `level`.
 --
--- RODA SÓ DEPOIS que o deploy com controle de nível estiver no ar e testado.
--- A versão anterior do site lê `active` a cada download; enquanto ela estiver
--- servindo, esta coluna precisa existir.
+-- RUNS ONLY AFTER the deploy with level-based access control is live and
+-- tested. The previous version of the site reads `active` on every download;
+-- while it's still serving, this column needs to exist.
 --
 --   wrangler d1 execute hybris-files --remote --file=db/migrations/2026-08-11-drop-active.sql
 --
--- Duas chaves para a mesma porta é uma a mais. Quem estava revogado já ficou
--- com nível 0 na migração de `access-levels`, que é a nova forma de dizer a
--- mesma coisa.
+-- Two keys for the same door is one too many. Whoever was revoked already
+-- ended up at level 0 in the `access-levels` migration, which is the new way
+-- of saying the same thing.
 
 ALTER TABLE codes DROP COLUMN active;

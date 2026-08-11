@@ -2,7 +2,7 @@ import { defineConfig } from 'astro/config';
 
 export default defineConfig({
   site: 'https://files.hybris.world',
-  // Estático de propósito: toda a lógica de acesso vive na Pages Function em
-  // functions/api/download.ts, não em SSR.
+  // Deliberately static: all access logic lives in the Pages Function at
+  // functions/api/download.ts, not in SSR.
   output: 'static',
 });

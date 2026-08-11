@@ -1,43 +1,43 @@
 /**
- * Catálogo dos arquivos protegidos.
+ * Catalog of protected files.
  *
- * Esta é a ÚNICA fonte de verdade sobre quais arquivos existem. É importada
- * tanto pelas páginas Astro (para gerar /d/<slug>) quanto pela Pages Function
- * de download.
+ * This is the ONLY source of truth for which files exist. It's imported both
+ * by the Astro pages (to generate /d/<slug>) and by the download Pages
+ * Function.
  *
- * `r2Key` é o nome do objeto dentro do bucket R2 privado. Ele nunca chega ao
- * cliente — o browser só conhece o `slug`.
+ * `r2Key` is the object name inside the private R2 bucket. It never reaches
+ * the client — the browser only knows the `slug`.
  */
 
 export interface FileEntry {
-  /** Aparece na URL: /d/<slug> */
+  /** Appears in the URL: /d/<slug> */
   slug: string;
-  /** Título mostrado na página de acesso */
+  /** Title shown on the access page */
   title: string;
-  /** Uma linha de contexto abaixo do título */
+  /** One line of context below the title */
   description: string;
-  /** Nível mínimo que um código precisa ter para abrir este arquivo */
+  /** Minimum level a code needs to open this file */
   level: number;
-  /** Caminho do objeto dentro do bucket R2 */
+  /** Object path inside the R2 bucket */
   r2Key: string;
-  /** Nome com que o arquivo chega no disco de quem baixa */
+  /** Filename the downloader gets on disk */
   downloadName: string;
   contentType: string;
 }
 
 /**
- * Níveis de acesso.
+ * Access levels.
  *
- * Cada código carrega um nível e abre todo arquivo cujo `level` seja menor ou
- * igual ao dele — a escada acompanha a ordem de exposição do material: o
- * one-pager se mostra a qualquer interessado, o roteiro completo a quase
- * ninguém.
+ * Each code carries a level and opens every file whose `level` is less than
+ * or equal to its own — the ladder follows the order in which material gets
+ * exposed: the one-pager is shown to any interested party, the full script
+ * to almost no one.
  *
- * O nível 0 não abre nada. É assim que se bloqueia um código sem apagá-lo:
- * o histórico dele no `access_log` continua fazendo sentido.
+ * Level 0 opens nothing. That's how a code gets blocked without deleting it:
+ * its history in `access_log` still makes sense.
  *
- * Os saltos de 10 em 10 existem para caber um nível intermediário no futuro
- * sem renumerar o que já foi distribuído.
+ * The jumps of 10 exist to fit an intermediate level in later without
+ * renumbering what's already been distributed.
  */
 export const ACCESS_LEVELS = [0, 10, 20, 30, 40] as const;
 export const LEVEL_BLOCKED = 0;
@@ -85,24 +85,24 @@ export const FILE_BY_SLUG: Record<string, FileEntry> = Object.fromEntries(
   FILES.map((f) => [f.slug, f])
 );
 
-/** O título sem o "Hybris —" da frente, para tabelas e listas. */
+/** The title without the leading "Hybris —", for tables and lists. */
 export function shortTitle(file: FileEntry): string {
   return file.title.replace(/^Hybris\s*—\s*/, '');
 }
 
-/** Arquivos que um código deste nível abre, do mais aberto ao mais restrito. */
+/** Files a code at this level opens, from most open to most restricted. */
 export function filesForLevel(level: number): FileEntry[] {
   return FILES.filter((f) => f.level <= level).sort((a, b) => a.level - b.level);
 }
 
-/** A única regra de autorização do sistema. Vive aqui para não ser reescrita
- *  de memória em cada lugar que precisa dela. */
+/** The system's single authorization rule. Lives here so it isn't rewritten
+ *  from memory everywhere it's needed. */
 export function canAccess(level: number, file: FileEntry): boolean {
   return level >= file.level && level > LEVEL_BLOCKED;
 }
 
-/** "One-Pager, Pitch Deck" — o que o nível abre, em uma linha. */
+/** "One-Pager, Pitch Deck" — what the level opens, in one line. */
 export function levelSummary(level: number): string {
   const open = filesForLevel(level);
-  return open.length === 0 ? 'não abre nada' : open.map(shortTitle).join(', ');
+  return open.length === 0 ? 'opens nothing' : open.map(shortTitle).join(', ');
 }

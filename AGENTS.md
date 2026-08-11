@@ -1,189 +1,191 @@
-# AGENTS.md — guia para agentes trabalhando neste repositório
+# AGENTS.md — guide for agents working in this repository
 
-Referência de trabalho para qualquer agente (Claude Code ou outro) que for mexer
-aqui. Leia antes de editar.
+Working reference for any agent (Claude Code or other) that will touch this
+repo. Read before editing.
 
-## O que é este projeto
+## What this project is
 
-Entrega controlada dos materiais de **Hybris** (Metron Showrunners), em
-`files.hybris.world`. Quatro PDFs num bucket R2 **privado**; quem tem um código
-válido baixa, e todo acesso é registrado.
+Controlled delivery of **Hybris** (Metron Showrunners) materials, at
+`files.hybris.world`. Four PDFs in a **private** R2 bucket; whoever has a
+valid code downloads, and every access is logged.
 
-Astro 4 estático + **uma** Pages Function de download + **uma** de estatísticas.
-Não há SSR, não há framework de UI, não há Tailwind. Se você está prestes a
-adicionar uma dependência, releia esta frase.
+Static Astro 4 + **one** download Pages Function + **one** stats Function.
+No SSR, no UI framework, no Tailwind. If you're about to add a dependency,
+re-read this sentence.
 
 ```
-GET  /d/<slug>        página estática com o formulário de código
-POST /api/download    valida no D1 → confere o nível → grava em access_log
-                      → streama do R2
-GET  /stats/<token>   painel de acessos (o token é a credencial)
+GET  /d/<slug>        static page with the code form
+POST /api/download    validates against D1 → checks the level → writes to access_log
+                      → streams from R2
+GET  /stats/<token>   access panel (the token is the credential)
 ```
 
-Cada arquivo tem um **nível** (10, 20, 30, 40, na ordem de exposição do
-material) e cada código carrega o seu: ele abre todo arquivo de nível igual ou
-menor. Nível 0 não abre nada — é assim que se bloqueia um código sem apagá-lo.
-A regra mora em `canAccess()`, em `shared/files.ts`, e não deve ser reescrita
-de memória em nenhum outro lugar.
+Each file has a **level** (10, 20, 30, 40, in order of material exposure)
+and each code carries its own: it opens any file at an equal or lower level.
+Level 0 opens nothing — that's how you block a code without deleting it.
+The rule lives in `canAccess()`, in `shared/files.ts`, and must not be
+rewritten from memory anywhere else.
 
-Isto **não** é o hotsite. O hotsite (`metron-hotsite` / `metron-hotsite-beta`) é
-outro repositório, com outro fluxo de promote. Não misture os dois.
+This is **not** the hotsite. The hotsite (`metron-hotsite` /
+`metron-hotsite-beta`) is a different repository, with a different promote
+flow. Don't mix the two.
 
-## Regra de ouro: este repositório é público
+## Golden rule: this repository is public
 
-Consequências que já quase deram errado:
+Consequences that already nearly went wrong:
 
-- **Nenhum código de acesso entra no git.** `db/codes.csv`, `db/seed-codes.sql`
-  e `db/labels.txt` estão no `.gitignore`. Se você gerar códigos, eles ficam
-  fora do versionamento — sempre.
-- **Nenhum token entra no código.** O `STATS_TOKEN` vive como secret do Pages
-  justamente porque escrevê-lo no fonte entregaria os 100 códigos a quem abrisse
-  o GitHub. Mesma regra para `IP_SALT`.
-- **Nenhum PDF entra no git.** Eles vivem no R2. O `.gitignore` tem `*.pdf`.
+- **No access code goes into git.** `db/codes.csv`, `db/seed-codes.sql`
+  and `db/labels.txt` are in `.gitignore`. If you generate codes, they stay
+  out of version control — always.
+- **No token goes into the code.** `STATS_TOKEN` lives as a Pages secret
+  precisely because writing it into the source would hand the 100 codes to
+  anyone who opened GitHub. Same rule for `IP_SALT`.
+- **No PDF goes into git.** They live in R2. `.gitignore` has `*.pdf`.
 
-Antes de commitar, rode a verificação da seção *Checklist*.
+Before committing, run the check in the *Checklist* section.
 
-## O modelo de segurança (o que não pode quebrar)
+## The security model (what must not break)
 
-Cada item abaixo existe por um motivo específico. Se for mexer, entenda o motivo
-antes.
+Each item below exists for a specific reason. If you're going to touch it,
+understand the reason first.
 
-| Onde | O quê | Por quê |
+| Where | What | Why |
 |---|---|---|
-| `functions/api/download.ts` | `Cache-Control: private, no-store` na resposta do arquivo | sem isso a borda da Cloudflare pode servir o PDF a quem não digitou código |
-| idem | freio de 10 tentativas inválidas por IP a cada 15 min | 100 códigos válidos seriam varridos rápido sem isso |
-| idem | tentativa inválida também vira linha em `access_log` (`ok = 0`) | é o sinal de que um código vazou e está circulando |
-| idem | código barrado pelo nível é `ok = 2`, fora do freio | quem tem código da lista não pode ser trancado por bater numa porta que não é dele; e a estatística separa "pediu demais" de "código vazado" |
-| idem | nível 0 devolve a mesma mensagem de código inválido | quem digita um código já bloqueado não precisa saber que ele existiu |
-| idem | `label` copiado para o log no momento do acesso | revogar ou renomear um código depois não reescreve a história |
-| idem | IP guardado só como `SHA-256(IP_SALT + IP)` | agrupa visitante e sustenta o freio sem reter dado pessoal em claro |
-| `shared/files.ts` | `canAccess()` é a única regra de autorização | reescrever a comparação em outro arquivo é como o `>=` vira `>` sem ninguém notar |
-| `functions/stats/[token].ts` | token errado devolve **404**, não 403 | quem chutar não descobre que a rota existe |
-| idem | comparação sem atalho de tempo | o token não pode ser descoberto caractere a caractere |
-| idem | token errado vira `ok = 3` e tranca o IP depois de 10 erros em 15 min | a entropia do token é a defesa principal, este é o fundo de rede; fica separado do `ok = 0` para não inflar o contador de códigos inválidos |
-| idem | trancado, continua respondendo **404** — nunca 429 | um 429 confirmaria a existência da rota, que é o que o 404 esconde |
-| idem | `Referrer-Policy: no-referrer` | a URL **é** o segredo; sem isso ela vaza no `Referer` de qualquer link clicado a partir da página |
-| `src/layouts/Layout.astro` | `noindex, nofollow` | material restrito não pode aparecer em buscador |
+| `functions/api/download.ts` | `Cache-Control: private, no-store` on the file response | without this the Cloudflare edge could serve the PDF to someone who never entered a code |
+| ditto | brake of 10 invalid attempts per IP every 15 min | 100 valid codes would be swept fast without this |
+| ditto | an invalid attempt also becomes a row in `access_log` (`ok = 0`) | it's the signal that a code has leaked and is circulating |
+| ditto | a code blocked by level is `ok = 2`, exempt from the brake | someone with a code from the list shouldn't get locked out for knocking on a door that isn't theirs; and the stats separate "asked too much" from "leaked code" |
+| ditto | level 0 returns the same message as an invalid code | someone typing an already-blocked code doesn't need to know it ever existed |
+| ditto | `label` copied into the log at the moment of access | revoking or renaming a code later doesn't rewrite history |
+| ditto | IP stored only as `SHA-256(IP_SALT + IP)` | groups the visitor and supports the brake without retaining personal data in the clear |
+| `shared/files.ts` | `canAccess()` is the single authorization rule | rewriting the comparison in another file is how `>=` turns into `>` without anyone noticing |
+| `functions/stats/[token].ts` | wrong token returns **404**, not 403 | someone guessing doesn't find out the route exists |
+| ditto | comparison without a timing shortcut | the token can't be discovered character by character |
+| ditto | wrong token becomes `ok = 3` and locks the IP after 10 errors in 15 min | the token's entropy is the main defense, this is the safety net; it's kept separate from `ok = 0` so it doesn't inflate the invalid-codes counter |
+| ditto | once locked, still responds **404** — never 429 | a 429 would confirm the route exists, which is what the 404 hides |
+| ditto | `Referrer-Policy: no-referrer` | the URL **is** the secret; without this it leaks in the `Referer` of any link clicked from the page |
+| `src/layouts/Layout.astro` | `noindex, nofollow` | restricted material can't show up in a search engine |
 
-O caminho do objeto no R2 (`r2Key`) nunca deve chegar ao HTML. Há uma checagem
-disso no checklist.
+The R2 object path (`r2Key`) must never reach the HTML. There's a check for
+this in the checklist.
 
-## Onde fica o quê
+## Where things live
 
 ```
-shared/files.ts          Catálogo dos 4 arquivos: slug, título, nível, r2Key,
-                         nome de download, mais os níveis e o `canAccess()`.
-                         FONTE ÚNICA DE VERDADE — importado tanto pelas páginas
-                         quanto pelas Functions. Adicionar um arquivo é editar
-                         só este array.
+shared/files.ts          Catalog of the 4 files: slug, title, level, r2Key,
+                         download name, plus the levels and `canAccess()`.
+                         SINGLE SOURCE OF TRUTH — imported by both the pages
+                         and the Functions. Adding a file means editing
+                         only this array.
 functions/
-  api/download.ts        Validação, checagem de nível, log e streaming do R2.
-  stats/[token].ts       Painel de acessos, agrupado por nível (HTML em TS).
+  api/download.ts        Validation, level check, logging, and streaming from R2.
+  stats/[token].ts       Access panel, grouped by level (HTML in TS).
 src/
-  pages/d/[slug].astro   As 4 páginas de código, via getStaticPaths.
-  pages/index.astro      Página neutra; não lista nada.
+  pages/d/[slug].astro   The 4 code pages, via getStaticPaths.
+  pages/index.astro      Neutral page; lists nothing.
   layouts/Layout.astro   <head>, noindex.
-  styles/global.css      CSS puro, paleta herdada da key art da Metron.
+  styles/global.css      Plain CSS, palette inherited from Metron's key art.
 db/
-  schema.sql             Tabelas `codes` e `access_log`. Idempotente. Descreve
-                         o banco como ele é hoje; serve para criar do zero.
-  migrations/*.sql       Mudanças em banco que já existe. Cada uma roda UMA vez.
-  stats.sql              Consultas de leitura (`npm run stats`).
-scripts/gen-codes.mjs    Gerador dos códigos (`--level=N`, ou nível por linha
-                         em db/labels.txt). Duplica a lista de níveis porque é
-                         .mjs e não importa o .ts — mudou lá, mude aqui.
-wrangler.toml            Bindings D1 + R2, aplicados no deploy.
+  schema.sql             `codes` and `access_log` tables. Idempotent. Describes
+                         the database as it is today; used to create it from scratch.
+  migrations/*.sql       Changes to an existing database. Each one runs ONCE.
+  stats.sql              Read queries (`npm run stats`).
+scripts/gen-codes.mjs    Code generator (`--level=N`, or level per line
+                         in db/labels.txt). Duplicates the level list because it's
+                         .mjs and doesn't import the .ts — changed there, change here.
+wrangler.toml            D1 + R2 bindings, applied at deploy.
 ```
 
-## Armadilhas do Cloudflare Pages (as que já custaram tempo)
+## Cloudflare Pages pitfalls (the ones that already cost time)
 
-Não são preferências de estilo. Cada uma quebra o deploy ou o site.
+These aren't style preferences. Each one breaks the deploy or the site.
 
-1. **`wrangler pages deploy` roda SEM argumento de diretório.** O diretório vem
-   do `pages_build_output_dir` no `wrangler.toml`. Passar os dois é erro de
-   validação. É esse mesmo campo que faz os bindings (`DB`, `FILES`) serem
-   aplicados pelo deploy em vez de configurados à mão no painel.
+1. **`wrangler pages deploy` runs WITHOUT a directory argument.** The
+   directory comes from `pages_build_output_dir` in `wrangler.toml`. Passing
+   both is a validation error. It's this same field that makes the bindings
+   (`DB`, `FILES`) get applied by the deploy instead of being configured by
+   hand in the dashboard.
 
-2. **Não coloque `account_id` no `wrangler.toml`.** Config de Pages não aceita o
-   campo (só a de Workers). Como a credencial enxerga mais de uma conta, os
-   comandos locais precisam da variável:
+2. **Don't put `account_id` in `wrangler.toml`.** Pages config doesn't accept
+   the field (only Workers config does). Since the credential sees more than
+   one account, local commands need the variable:
    ```
    CLOUDFLARE_ACCOUNT_ID=e8a97d34c66d7538dddf6603cf0089ee
    ```
-   Sem ela, o wrangler para com *"More than one account available"*.
+   Without it, wrangler stops with *"More than one account available"*.
 
-3. **O job `pages-deploy` faz `actions/checkout` de propósito.** O wrangler
-   compila `functions/` a partir do diretório corrente, e o artifact carrega só
-   o `dist/`. Sem o checkout, o site sobe sem as Functions e todo download
-   quebra com 405.
+3. **The `pages-deploy` job does `actions/checkout` on purpose.** Wrangler
+   compiles `functions/` from the current directory, and the artifact only
+   carries `dist/`. Without the checkout, the site goes up without the
+   Functions and every download breaks with 405.
 
-4. **As páginas são estáticas — não há query string em tempo de build.** A
-   mensagem de erro do formulário chega por `?erro=1` e é revelada por um script
-   inline lendo `location.search`. O Astro serve `/d/<slug>/` com barra final e
-   a Cloudflare redireciona com 308 preservando a query; isso está testado, mas
-   se você mexer no roteamento, teste de novo.
+4. **The pages are static — there's no query string at build time.** The
+   form's error message arrives via `?erro=1` and is revealed by an inline
+   script reading `location.search`. Astro serves `/d/<slug>/` with a
+   trailing slash and Cloudflare redirects with 308 preserving the query;
+   this is tested, but if you touch the routing, test it again.
 
-5. **`npm run dev` não serve as Functions.** Para testar download ou estatística
-   localmente é `npm run preview` (que é `wrangler pages dev dist`), com
-   `.dev.vars` preenchido.
+5. **`npm run dev` doesn't serve the Functions.** To test download or stats
+   locally, use `npm run preview` (which is `wrangler pages dev dist`), with
+   `.dev.vars` filled in.
 
-## Como rodar e verificar
+## How to run and verify
 
 ```bash
 npm install
-npm run build     # SEMPRE antes de dar push
-npm run preview   # dist/ + Functions + bindings locais
+npm run build     # ALWAYS before pushing
+npm run preview   # dist/ + Functions + local bindings
 ```
 
-Verificação que vale mais que o build, porque o build passa mesmo com a Function
-quebrada:
+Check that matters more than the build, because the build passes even with a
+broken Function:
 
 ```bash
 npx wrangler pages functions build --outfile=.wrangler/test-worker.js
 ```
 
-E, depois de qualquer mudança em `download.ts` ou `shared/files.ts`, teste
-**contra o deploy de verdade** — código válido, código inválido e o cabeçalho da
-resposta:
+And, after any change to `download.ts` or `shared/files.ts`, test **against
+the real deploy** — valid code, invalid code, and the response header:
 
 ```bash
 BASE=https://files-hybris-world.pages.dev
 curl -s -o /dev/null -D - -X POST "$BASE/api/download" -d "slug=one-pager" -d "code=INVALIDO" | grep -iE '^HTTP|^location'
-# esperado: 303 -> /d/one-pager?erro=1
+# expected: 303 -> /d/one-pager?erro=1
 ```
 
-Um teste seu grava linha no `access_log` e aparece no painel. Limpe depois se
-for antes de distribuir:
+A test of yours writes a row to `access_log` and shows up in the panel. Clean
+it up afterward if it's before distributing:
 
 ```bash
 wrangler d1 execute hybris-files --remote --command="DELETE FROM access_log"
 ```
 
-## Trocar ou acrescentar um arquivo
+## Swapping or adding a file
 
-1. Suba o PDF: `wrangler r2 object put hybris-files/hybris/<key> --file="..." --content-type=application/pdf`
-2. Edite **só** `shared/files.ts` — as páginas, a Function e o painel acompanham
-   sozinhos. O `level` do arquivo novo decide quem já pode abri-lo: entrar com
-   nível 10 libera o material para todos os códigos existentes de uma vez.
-3. `npm run build` e deploy.
+1. Upload the PDF: `wrangler r2 object put hybris-files/hybris/<key> --file="..." --content-type=application/pdf`
+2. Edit **only** `shared/files.ts` — the pages, the Function, and the panel
+   follow automatically. The new file's `level` decides who can already open
+   it: setting level 10 unlocks the material for all existing codes at once.
+3. `npm run build` and deploy.
 
-Trocando o conteúdo mantendo o mesmo `r2Key`, não há cache a furar: a resposta
-já é `no-store`.
+Swapping the content while keeping the same `r2Key`, there's no cache to
+bust: the response is already `no-store`.
 
-## Checklist antes de dar push
+## Checklist before pushing
 
-1. `npm run build` passou.
-2. `npx wrangler pages functions build` compilou.
-3. Nenhum código/segredo no diff:
+1. `npm run build` passed.
+2. `npx wrangler pages functions build` compiled.
+3. No code/secret in the diff:
    ```bash
-   git ls-files | grep -E 'codes\.csv|seed-codes|labels\.txt|\.dev\.vars$|\.pdf'   # tem que vir vazio
-   git grep -nE 'oauth_token|api_token|STATS_TOKEN *= *["'\'']'                    # idem
+   git ls-files | grep -E 'codes\.csv|seed-codes|labels\.txt|\.dev\.vars$|\.pdf'   # must come back empty
+   git grep -nE 'oauth_token|api_token|STATS_TOKEN *= *["'\'']'                    # ditto
    ```
-4. Nenhuma referência a arquivo ou bucket no HTML público:
+4. No reference to a file or bucket in the public HTML:
    ```bash
-   grep -rniE 'r2key|\.pdf|hybris/' dist/    # tem que vir vazio
+   grep -rniE 'r2key|\.pdf|hybris/' dist/    # must come back empty
    ```
-5. Testou em viewport mobile — quem recebe esse link costuma abrir no celular.
-6. Se mexeu no fluxo de download, testou código válido **e** inválido contra o
-   deploy.
-7. Mensagem de commit **sem** trailer de co-autoria.
+5. Tested in mobile viewport — whoever receives this link usually opens it on
+   a phone.
+6. If you touched the download flow, tested valid **and** invalid code
+   against the deploy.
+7. Commit message **without** a co-authorship trailer.

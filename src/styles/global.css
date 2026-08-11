@@ -31,6 +31,7 @@ body {
   margin: 0;
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem 1.25rem;
@@ -200,4 +201,29 @@ button:focus-visible {
   margin-top: 0.15rem;
   font-size: 0.85rem;
   color: var(--ink-soft);
+}
+
+/* ── Rodapé de direitos autorais ───────────────────── */
+.ip-notice {
+  width: 100%;
+  max-width: 30rem;
+  margin-top: 3rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(26, 18, 10, 0.15);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.ip-notice-title {
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem;
+}
+
+.ip-notice p {
+  margin: 0.4rem 0 0;
 }

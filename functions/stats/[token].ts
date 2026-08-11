@@ -16,7 +16,26 @@ import { ACCESS_LEVELS, FILES, filesForLevel, levelSummary } from '../../shared/
 export interface Env {
   DB: D1Database;
   STATS_TOKEN: string;
+  /** Mesmo segredo do download: hasheia o IP antes de gravar a tentativa. */
+  IP_SALT: string;
 }
+
+/**
+ * Freio de força bruta no token.
+ *
+ * A defesa real do painel continua sendo a entropia do `STATS_TOKEN`; este
+ * freio é a rede de segurança para o caso de o token ser fraco. Como a página
+ * não registra acerto nenhum, toda tentativa que erra o token é, na prática,
+ * alguém adivinhando: gravamos como `ok = 3` — separado das inválidas de código
+ * (`ok = 0`), para não inflar o contador do painel — e trancamos o IP depois de
+ * MAX_TOKEN_ATTEMPTS erros na janela. O token só chega copiado e colado, então
+ * um humano legítimo não acumula erros.
+ */
+const MAX_TOKEN_ATTEMPTS = 10;
+const TOKEN_WINDOW_MINUTES = 15;
+const LOG_TOKEN_ATTEMPT = 3;
+/** slug-sentinela: a tentativa de token não é sobre nenhum arquivo. */
+const STATS_SLUG = '__stats__';
 
 /** Comparação sem atalho de tempo, para o token não ser descoberto byte a byte. */
 function safeEqual(a: string, b: string): boolean {
@@ -26,6 +45,15 @@ function safeEqual(a: string, b: string): boolean {
     diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return diff === 0;
+}
+
+async function hashIp(ip: string, salt: string): Promise<string> {
+  const bytes = new TextEncoder().encode(`${salt}:${ip}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, 32);
 }
 
 function esc(value: unknown): string {
@@ -68,11 +96,37 @@ interface FileRow {
   pessoas: number;
 }
 
-export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
+export const onRequestGet: PagesFunction<Env> = async ({ params, request, env }) => {
   const token = String(params.token ?? '');
   const notFound = new Response('Not found', { status: 404 });
 
+  // Freio antes de olhar o token. Continua devolvendo 404 (nunca 429) mesmo
+  // trancado: um 429 confirmaria que a rota existe, que é justamente o que o
+  // 404 esconde.
+  const ip = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const ipHash = await hashIp(ip, env.IP_SALT ?? 'no-salt-configured');
+  const since = new Date(Date.now() - TOKEN_WINDOW_MINUTES * 60_000).toISOString();
+  const failed = await env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM access_log WHERE ip_hash = ? AND ok = ? AND ts > ?`
+  )
+    .bind(ipHash, LOG_TOKEN_ATTEMPT, since)
+    .first<{ n: number }>();
+
+  if ((failed?.n ?? 0) >= MAX_TOKEN_ATTEMPTS) {
+    return notFound;
+  }
+
   if (!env.STATS_TOKEN || !safeEqual(token, env.STATS_TOKEN)) {
+    // Registra o erro para o freio. Como o freio para de contar depois do teto,
+    // o log não cresce sem limite durante um ataque sustentado.
+    const country = (request as { cf?: { country?: string } }).cf?.country ?? null;
+    const ua = request.headers.get('User-Agent')?.slice(0, 300) ?? null;
+    await env.DB.prepare(
+      `INSERT INTO access_log (code, label, slug, ok, ts, country, ip_hash, ua)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+      .bind(null, null, STATS_SLUG, LOG_TOKEN_ATTEMPT, new Date().toISOString(), country, ipHash, ua)
+      .run();
     return notFound;
   }
 
@@ -168,18 +222,38 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   tr.zero td { color:#8a7a63; }
   .off { color:#8c2f22; font-size:.75rem; }
   .foot { margin-top:2.5rem; font-size:.8rem; color:var(--soft); }
+  .warn { margin-top:2.5rem; padding:.9rem 1.1rem; background:rgba(140,47,34,.1);
+          border:1px solid #8c2f22; border-left-width:4px; border-radius:2px;
+          color:#8c2f22; font-size:.9rem; }
+  .warn b { letter-spacing:.02em; }
   .level { margin-bottom:1.75rem; }
+  /* Botão porque o cabeçalho é clicável: teclado e leitor de tela vêm de graça.
+     O reset abaixo desfaz a aparência de botão, não o comportamento. */
   .level-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem .75rem;
-                padding:.35rem 0; border-bottom:2px solid rgba(26,18,10,.28); }
+                width:100%; padding:.35rem 0; border:0;
+                border-bottom:2px solid rgba(26,18,10,.28);
+                background:none; color:inherit; font:inherit; text-align:left;
+                cursor:pointer; }
+  .level-head:hover { background:rgba(255,255,255,.28); }
+  .level-head:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
   .level-head b { font-size:1.05rem; }
   .level-head .abre { color:var(--soft); font-size:.85rem; font-style:italic; }
   .level-head .count { margin-left:auto; font-size:.75rem; letter-spacing:.1em;
                        text-transform:uppercase; color:var(--soft); }
+  .caret { display:inline-block; width:.75rem; color:var(--soft);
+           transition:transform .15s ease; }
+  .level-head[aria-expanded="false"] .caret { transform:rotate(-90deg); }
   .level.blocked .level-head { border-bottom-color:#8c2f22; }
   .level.blocked .level-head b { color:#8c2f22; }
   .level.unknown .level-head b::after { content:' (fora da escala)'; font-size:.75rem;
                                         color:#8c2f22; font-weight:400; }
   .empty { margin:.6rem 0 0; font-size:.85rem; color:#8a7a63; font-style:italic; }
+  .toolbar { display:flex; gap:.75rem; margin:-.35rem 0 1rem; }
+  .toolbar button { border:1px solid rgba(26,18,10,.22); background:rgba(255,255,255,.42);
+                    color:var(--soft); font:inherit; font-size:.75rem; letter-spacing:.1em;
+                    text-transform:uppercase; padding:.3rem .7rem; border-radius:2px;
+                    cursor:pointer; }
+  .toolbar button:hover { background:rgba(255,255,255,.7); color:var(--ink); }
 </style>
 </head>
 <body>
@@ -210,15 +284,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   </table></div>
 
   <h2>Por nível de acesso</h2>
+  <div class="toolbar" id="toolbar" hidden>
+    <button type="button" data-all="open">Expandir tudo</button>
+    <button type="button" data-all="close">Recolher tudo</button>
+  </div>
   ${groups
     .filter((g) => g.codes.length > 0 || (g.known && g.level > 0))
     .map(
       (g) => `<div class="level${g.level <= 0 ? ' blocked' : ''}${g.known ? '' : ' unknown'}">
-    <div class="level-head">
+    <button type="button" class="level-head" aria-expanded="true" aria-controls="nivel-${g.level}">
+      <span class="caret" aria-hidden="true">▾</span>
       <b>Nível ${g.level}</b>
       <span class="abre">${g.level <= 0 ? 'não abre nada' : `abre ${esc(g.abre)}`}</span>
       <span class="count">${g.codes.length} ${g.codes.length === 1 ? 'código' : 'códigos'}</span>
-    </div>
+    </button>
+    <div class="level-body" id="nivel-${g.level}">
     ${
       g.codes.length === 0
         ? '<p class="empty">Nenhum código neste nível.</p>'
@@ -237,12 +317,49 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
         .join('')}
     </table></div>`
     }
+    </div>
   </div>`
     )
     .join('')}
 
-  <p class="foot">Esta página mostra os códigos em claro. Não compartilhe a URL.</p>
+  <p class="warn"><b>Esta página mostra os códigos em claro.</b> Quem tiver esta
+    URL tem todos os códigos, e ela é a única credencial. <b>Não compartilhe a
+    URL</b> — nem em print, nem em link, nem colada em conversa.</p>
 </div>
+
+<script>
+// Accordion dos níveis. O HTML sai do servidor com tudo aberto de propósito:
+// se este script não rodar, a página continua inteira e legível — só deixa de
+// dobrar. Quem recolhe é o próprio script, no carregamento.
+(function () {
+  var heads = document.querySelectorAll('.level-head');
+  if (!heads.length) return;
+
+  function set(head, open) {
+    head.setAttribute('aria-expanded', String(open));
+    document.getElementById(head.getAttribute('aria-controls')).hidden = !open;
+  }
+
+  heads.forEach(function (head) {
+    // Começa recolhido, menos o nível que ainda não tem ninguém: ali o que
+    // interessa é justamente a linha "nenhum código neste nível".
+    var vazio = head.parentNode.querySelector('.empty') !== null;
+    set(head, vazio);
+    head.addEventListener('click', function () {
+      set(head, head.getAttribute('aria-expanded') !== 'true');
+    });
+  });
+
+  // Os dois botões só existem para quem tem script; sem ele não fariam nada.
+  var toolbar = document.getElementById('toolbar');
+  toolbar.hidden = false;
+  toolbar.addEventListener('click', function (e) {
+    var acao = e.target.getAttribute('data-all');
+    if (!acao) return;
+    heads.forEach(function (head) { set(head, acao === 'open'); });
+  });
+})();
+</script>
 </body>
 </html>`;
 

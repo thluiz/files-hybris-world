@@ -220,6 +220,11 @@ Como a página lista os códigos em claro, ela responde com `no-store`,
 `noindex` e `Referrer-Policy: no-referrer` — sem essa última, a URL secreta
 viajaria no `Referer` de qualquer link clicado a partir dela.
 
+A entropia do token é a defesa principal, mas não a única: cada token errado é
+gravado com `ok = 3` (o slug-sentinela `__stats__`) e, depois de 10 erros por
+IP em 15 minutos, o IP é trancado. O bloqueio também responde `404`, para não
+confirmar que a rota existe nem quando o freio está ativo.
+
 Para trocar o token:
 
 ```bash
@@ -278,9 +283,11 @@ Por ordem de retorno:
    os códigos reais. Ligar **Cloudflare Access** nos previews, ou apontar o
    preview para um bucket/DB descartável.
 2. **A URL de `/stats` é chave-mestra.** Lista todos os códigos em claro e não
-   expira. Manter `STATS_TOKEN` com ≥32 chars aleatórios e considerar mascarar os
-   códigos no painel (só os últimos dígitos). Se vazar, todos os códigos vão
-   junto, sem alarme.
+   expira. A adivinhação do token já tem freio (10 erros por IP em 15 min,
+   `ok = 3`), mas o freio não protege contra vazamento da URL certa: se ela
+   escapar, todos os códigos vão junto, sem alarme. Manter `STATS_TOKEN` com ≥32
+   chars aleatórios e considerar mascarar os códigos no painel (só os últimos
+   dígitos).
 3. **Dois bugs no sistema de acesso** (não são brechas, mas quebram função):
    - `scripts/gen-codes.mjs` ainda faz `INSERT` com a coluna `active`, removida na
      migração `2026-08-11-access-levels.sql`, então o seed de códigos novos falha.

@@ -1,42 +1,44 @@
 /**
  * POST /api/download
  *
- * Recebe { slug, code } de um <form> comum, valida o código no D1, confere se o
- * nível dele alcança o arquivo pedido, registra o evento (inclusive as
- * tentativas inválidas) e devolve o arquivo lido do bucket R2 privado.
+ * Receives { slug, code } from a plain <form>, validates the code against D1,
+ * checks whether its level reaches the requested file, logs the event
+ * (including invalid attempts), and returns the file read from the private
+ * R2 bucket.
  *
- * O objeto do R2 nunca é exposto: não há URL pública, nem redirect assinado —
- * o corpo do arquivo passa por aqui como stream.
+ * The R2 object is never exposed: there's no public URL, no signed redirect —
+ * the file body streams through here.
  */
 import { FILE_BY_SLUG, canAccess } from '../../shared/files';
 
 export interface Env {
-  /** Bucket R2 privado com os arquivos */
+  /** Private R2 bucket holding the files */
   FILES: R2Bucket;
-  /** Banco D1 com as tabelas `codes` e `access_log` */
+  /** D1 database with the `codes` and `access_log` tables */
   DB: D1Database;
-  /** Segredo usado para hashear o IP antes de gravar (não guardamos IP cru) */
+  /** Secret used to hash the IP before storing it (we never store raw IPs) */
   IP_SALT: string;
 }
 
-/** Tentativas inválidas toleradas por IP dentro da janela abaixo. */
+/** Invalid attempts tolerated per IP within the window below. */
 const MAX_FAILED_ATTEMPTS = 10;
 const WINDOW_MINUTES = 15;
 
 /**
- * Valores gravados em `access_log.ok`.
+ * Values stored in `access_log.ok`.
  *
- * `DENIED` é código legítimo esbarrando num arquivo acima do nível dele. Fica
- * separado de `INVALID` por dois motivos: não conta no freio de força bruta
- * (quem tem código da lista não pode ser trancado por bater numa porta que não
- * é dele) e, no painel, é um sinal diferente — não é código vazado, é alguém
- * pedindo mais material do que recebeu.
+ * `DENIED` is a legitimate code hitting a file above its level. It's kept
+ * separate from `INVALID` for two reasons: it doesn't count toward the
+ * brute-force throttle (someone with a real listed code shouldn't get locked
+ * out for knocking on a door that isn't theirs), and in the panel it's a
+ * different signal — not a leaked code, but someone requesting more material
+ * than they were granted.
  */
 const LOG_INVALID = 0;
 const LOG_OK = 1;
 const LOG_DENIED = 2;
 
-/** Aceita o código digitado com ou sem hífen, espaço ou minúscula. */
+/** Accepts the entered code with or without hyphens, spaces, or lowercase. */
 function normalizeCode(raw: string): string {
   return raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
@@ -50,7 +52,7 @@ async function hashIp(ip: string, salt: string): Promise<string> {
     .slice(0, 32);
 }
 
-/** Content-Disposition seguro para nomes com acento (RFC 5987). */
+/** Safe Content-Disposition for accented filenames (RFC 5987). */
 function contentDisposition(filename: string): string {
   const ascii = filename.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '');
   return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
@@ -59,7 +61,7 @@ function contentDisposition(filename: string): string {
 function backToForm(request: Request, slug: string, reason: string): Response {
   const url = new URL(`/d/${slug}`, request.url);
   url.searchParams.set('erro', reason);
-  // 303 força o browser a trocar o POST por um GET na volta.
+  // 303 forces the browser to swap the POST for a GET on the way back.
   return Response.redirect(url.toString(), 303);
 }
 
@@ -87,9 +89,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       .bind(code || null, label, slug, ok, now, country, ipHash, ua)
       .run();
 
-  // Freio de força bruta: 100 códigos válidos num espaço pequeno seriam
-  // varridos rápido sem isto. `ts` é ISO 8601 UTC, então comparar como texto
-  // equivale a comparar como data.
+  // Brute-force throttle: 100 valid codes in a small space would be swept
+  // fast without this. `ts` is ISO 8601 UTC, so comparing as text is
+  // equivalent to comparing as a date.
   const since = new Date(Date.now() - WINDOW_MINUTES * 60_000).toISOString();
   const failed = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM access_log WHERE ip_hash = ? AND ok = 0 AND ts > ?`
@@ -112,9 +114,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return backToForm(request, slug, '1');
   }
 
-  // Nível 0 não abre nada: é assim que um código é bloqueado sem ser apagado.
-  // Para quem digitou, um código bloqueado é indistinguível de um inválido —
-  // não há por que informar que ele já existiu.
+  // Level 0 opens nothing: that's how a code gets blocked without being
+  // deleted. To whoever typed it, a blocked code is indistinguishable from
+  // an invalid one — there's no reason to reveal that it ever existed.
   if (!canAccess(row.level, file)) {
     await logAccess(LOG_DENIED, row.label);
     return backToForm(request, slug, row.level > 0 ? 'nivel' : '1');
@@ -122,8 +124,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const object = await env.FILES.get(file.r2Key);
   if (!object) {
-    // Código era válido, mas o arquivo não está no bucket: erro nosso, não da
-    // pessoa. Logamos como acesso autorizado para não sumir da estatística.
+    // Code was valid, but the file isn't in the bucket: our error, not the
+    // person's. We log it as an authorized access so it doesn't vanish from
+    // the stats.
     await logAccess(LOG_OK, row.label);
     return new Response('File temporarily unavailable.', { status: 503 });
   }
@@ -135,8 +138,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       'Content-Type': file.contentType,
       'Content-Disposition': contentDisposition(file.downloadName),
       'Content-Length': String(object.size),
-      // Sem isto, a borda da Cloudflare poderia servir o arquivo a quem não
-      // digitou código nenhum.
+      // Without this, Cloudflare's edge could serve the file to someone who
+      // never entered a code at all.
       'Cache-Control': 'private, no-store, max-age=0',
       'X-Robots-Tag': 'noindex, nofollow',
     },

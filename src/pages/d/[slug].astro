@@ -46,14 +46,14 @@ const { file } = Astro.props;
 </Layout>
 
 <script is:inline>
-  // A página é estática, então a mensagem de erro vem pela query string que a
-  // Function anexa no redirect de volta.
+  // The page is static, so the error message comes via the query string that the
+  // Function appends on the redirect back.
   const reason = new URLSearchParams(location.search).get('erro');
   if (reason) {
     const box = document.getElementById('error');
     const messages = {
       rate: 'Too many attempts. Please wait a few minutes and try again.',
-      // Código da lista, mas para um material que não foi liberado a ele.
+      // Code on the list, but for a document not granted to it.
       nivel: 'Your access code does not cover this document. Please contact Metron Showrunners.',
     };
     box.textContent = messages[reason] || 'That access code is not valid.';

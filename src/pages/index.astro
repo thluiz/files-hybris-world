@@ -3,8 +3,8 @@ import Layout from '../layouts/Layout.astro';
 import '../styles/global.css';
 import { FILES } from '../../shared/files';
 
-// Os títulos do catálogo já trazem "Hybris —" na frente; aqui isso seria
-// repetido quatro vezes debaixo do próprio título da página.
+// Catalog titles already carry "Hybris —" in front; here that would be
+// repeated four times right under the page's own title.
 const items = FILES.map((f) => ({
   ...f,
   shortTitle: f.title.replace(/^Hybris\s*—\s*/, ''),

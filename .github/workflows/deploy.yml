@@ -27,8 +27,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      # O checkout é obrigatório aqui: o wrangler compila functions/ a partir
-      # do diretório corrente, e o artifact só carrega o dist/.
+      # Checkout is required here: wrangler compiles functions/ from the
+      # current directory, and the artifact only carries dist/.
       - uses: actions/checkout@v4
 
       - uses: actions/download-artifact@v4
@@ -41,7 +41,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # Sem argumento de diretório: ele vem do `pages_build_output_dir` no
-          # wrangler.toml, que é também o que aplica os bindings (D1, R2) no
-          # deploy. Passar o diretório junto é erro de validação.
+          # No directory argument: it comes from `pages_build_output_dir` in
+          # wrangler.toml, which is also what applies the bindings (D1, R2) on
+          # deploy. Passing the directory alongside it is a validation error.
           command: pages deploy --project-name=files-hybris-world --branch=main

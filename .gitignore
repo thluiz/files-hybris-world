@@ -3,15 +3,15 @@ dist/
 .astro/
 .wrangler/
 
-# Segredos locais (IP_SALT)
+# Local secrets (IP_SALT)
 .dev.vars
 
-# Os códigos de acesso NUNCA entram no git — este repositório é público.
+# Access codes NEVER go into git — this repository is public.
 db/seed-codes.sql
 db/codes.csv
 db/labels.txt
-# Cópias de segurança dessas listas, feitas antes de mexer nos níveis.
+# Backup copies of these lists, made before touching the levels.
 db/*.bak
 
-# Os PDFs vivem no R2, não aqui.
+# PDFs live in R2, not here.
 *.pdf

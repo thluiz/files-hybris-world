@@ -1,104 +1,107 @@
 # files.hybris.world
 
-Entrega controlada dos materiais de **Hybris** (Metron Showrunners). Cada
-arquivo tem uma página de acesso; quem tem um código válido baixa, e todo acesso
-fica registrado para estatística.
+Controlled delivery of **Hybris** (Metron Showrunners) materials. Each file
+has an access page; whoever has a valid code can download it, and every
+access is logged for statistics.
 
-Os PDFs ficam num bucket **R2 privado** — não existe URL pública para eles. O
-arquivo só sai por `POST /api/download`, depois da validação do código.
+The PDFs live in a private **R2 bucket** — there is no public URL for them.
+The file only goes out via `POST /api/download`, after the code is validated.
 
-## Como funciona
+## How it works
 
 ```
-GET  /d/<slug>        página estática com o formulário de código
+GET  /d/<slug>        static page with the code form
 POST /api/download    Pages Function:
-                        1. valida o código no D1
-                        2. confere se o nível dele alcança o arquivo
-                        3. grava o evento em access_log
-                        4. lê o objeto do R2 e devolve o stream
-                      código inválido → 303 para /d/<slug>?erro=1
-                      nível insuficiente → 303 para /d/<slug>?erro=nivel
+                        1. validates the code against D1
+                        2. checks whether its level reaches the file
+                        3. logs the event in access_log
+                        4. reads the object from R2 and returns the stream
+                      invalid code → 303 to /d/<slug>?erro=1
+                      insufficient level → 303 to /d/<slug>?erro=nivel
 ```
 
-Os 4 arquivos, seus slugs e seus níveis vivem em
-[`shared/files.ts`](shared/files.ts) — é a única fonte de verdade, importada
-tanto pelas páginas quanto pelas Functions.
+The 4 files, their slugs and their levels live in
+[`shared/files.ts`](shared/files.ts) — it's the single source of truth,
+imported by both the pages and the Functions.
 
-| Nível | Slug | Arquivo |
+| Level | Slug | File |
 |---|---|---|
 | 10 | `one-pager` | Hybris — One-Pager |
 | 20 | `pitch-deck` | Hybris — Pitch Deck |
 | 30 | `series-bible` | Hybris — Series Bible |
 | 40 | `season-one-script` | Hybris — Season One Full Script |
 
-## Níveis de acesso
+## Access levels
 
-Cada código carrega um nível e abre **todo arquivo de nível igual ou menor**.
-A escada acompanha a ordem de exposição do material: o one-pager se mostra a
-qualquer interessado, o roteiro completo a quase ninguém.
+Each code carries a level and unlocks **every file at that level or below**.
+The ladder mirrors the order in which the material is meant to be exposed:
+the one-pager is shown to any interested party, the full script to almost
+no one.
 
-| Nível | Abre |
+| Level | Unlocks |
 |---|---|
-| 0 | nada — é assim que se bloqueia um código |
+| 0 | nothing — this is how a code gets blocked |
 | 10 | One-Pager |
 | 20 | One-Pager, Pitch Deck |
 | 30 | One-Pager, Pitch Deck, Series Bible |
-| 40 | os quatro |
+| 40 | all four |
 
-O nível 0 substituiu a coluna `active`: bloquear é zerar o nível. O código
-continua na tabela, e o histórico dele no `access_log` continua fazendo
-sentido. Os saltos de 10 em 10 deixam espaço para um nível intermediário no
-futuro sem renumerar o que já foi distribuído.
+Level 0 replaced the `active` column: blocking a code means zeroing its
+level. The code stays in the table, and its history in `access_log` keeps
+making sense. Jumps of 10 leave room for an intermediate level in the future
+without renumbering what's already been distributed.
 
-Um código legítimo barrado pelo nível é registrado com `ok = 2`, separado das
-tentativas inválidas (`ok = 0`): não é código vazado, é alguém pedindo material
-que não recebeu. Por isso também **não** conta no freio de força bruta — quem
-tem código da lista não pode ser trancado por bater numa porta que não é dele.
+A legitimate code blocked by level is logged with `ok = 2`, separate from
+invalid attempts (`ok = 0`): it isn't a leaked code, it's someone requesting
+material they weren't given. That's also why it does **not** count toward
+the brute-force throttle — someone with a code from the list shouldn't get
+locked out for knocking on a door that isn't theirs.
 
-Quem digita um código de nível 0 vê a mesma mensagem de código inválido: não há
-por que informar que aquele código já existiu.
+Anyone who types a level-0 code sees the same invalid-code message: there's
+no reason to reveal that the code ever existed.
 
 ## Stack
 
-- Astro 4, output estático (nenhum SSR)
+- Astro 4, static output (no SSR)
 - Cloudflare Pages + Pages Functions
-- R2 (arquivos) e D1 (códigos + log)
+- R2 (files) and D1 (codes + log)
 
-## A conta da Cloudflare
+## The Cloudflare account
 
-Tudo vive na conta `Watchyourhybris@gmail.com's Account`
-(`e8a97d34c66d7538dddf6603cf0089ee`) — a mesma da zona `hybris.world` e dos dois
-hotsites da Metron.
+Everything lives in the `Watchyourhybris@gmail.com's Account` account
+(`e8a97d34c66d7538dddf6603cf0089ee`) — the same one as the `hybris.world`
+zone and the two Metron hotsites.
 
-Config de Pages **não aceita** `account_id` no `wrangler.toml`, e a credencial
-enxerga mais de uma conta. Então todo comando local precisa da variável:
+Pages config **does not accept** `account_id` in `wrangler.toml`, and the
+credential sees more than one account. So every local command needs the
+variable:
 
 ```bash
 export CLOUDFLARE_ACCOUNT_ID=e8a97d34c66d7538dddf6603cf0089ee   # bash
 $env:CLOUDFLARE_ACCOUNT_ID = 'e8a97d34c66d7538dddf6603cf0089ee' # pwsh
 ```
 
-Sem ela o wrangler para com *"More than one account available"*.
+Without it, wrangler stops with *"More than one account available"*.
 
-## Setup inicial
+## Initial setup
 
-Já feito, registrado aqui para reconstrução. Requer `wrangler login`.
+Already done, documented here for rebuilding. Requires `wrangler login`.
 
 ```bash
-# 1. Banco — copie o database_id devolvido para o wrangler.toml
+# 1. Database — copy the returned database_id into wrangler.toml
 wrangler d1 create hybris-files
 npm run db:init
 
-# 2. Códigos de acesso
+# 2. Access codes
 npm run gen:codes
 npm run db:seed
 
-# 3. Projeto Pages e segredo
+# 3. Pages project and secret
 wrangler pages project create files-hybris-world --production-branch=main
 node -e "process.stdout.write(require('crypto').randomBytes(32).toString('hex'))" \
   | wrangler pages secret put IP_SALT --project-name=files-hybris-world
 
-# 4. Bucket privado e upload dos PDFs — exige R2 ativado na conta
+# 4. Private bucket and PDF upload — requires R2 enabled on the account
 wrangler r2 bucket create hybris-files
 wrangler r2 object put hybris-files/hybris/01-one-pager.pdf              --file="..." --content-type=application/pdf
 wrangler r2 object put hybris-files/hybris/02-pitch-deck.pdf             --file="..." --content-type=application/pdf
@@ -106,211 +109,223 @@ wrangler r2 object put hybris-files/hybris/03-series-bible.pdf           --file=
 wrangler r2 object put hybris-files/hybris/04-season-one-full-script.pdf --file="..." --content-type=application/pdf
 ```
 
-### Migrações
+### Migrations
 
-`db/schema.sql` descreve o banco como ele é hoje e serve para criar do zero.
-Banco que já existe muda por arquivo em `db/migrations/`, cada um rodado **uma
-vez só**:
+`db/schema.sql` describes the database as it stands today and serves to
+create it from scratch. An existing database changes via files in
+`db/migrations/`, each run **exactly once**:
 
-A troca de `codes.active` por `codes.level` vem em três arquivos, e **a ordem
-importa**: entre a migração e o deploy há uma versão do site no ar lendo a
-coluna antiga.
+The swap of `codes.active` for `codes.level` ships in three files, and
+**order matters**: between the migration and the deploy there's a live
+version of the site still reading the old column.
 
 ```bash
-# 1. ANTES do deploy — só acrescenta. Todo código ativo vira nível 40, que é
-#    exatamente o acesso que ele já tinha. O site atual continua funcionando.
+# 1. BEFORE the deploy — additive only. Every active code becomes level 40,
+#    which is exactly the access it already had. The current site keeps working.
 wrangler d1 execute hybris-files --remote --file=db/migrations/2026-08-11-access-levels.sql
 
-# 2. Divide os 100 códigos genéricos em quatro faixas de 25 (10/20/30/40).
-#    Códigos zerados de propósito continuam zerados.
+# 2. Splits the 100 generic codes into four bands of 25 (10/20/30/40).
+#    Codes zeroed out on purpose stay zeroed.
 wrangler d1 execute hybris-files --remote --file=db/migrations/2026-08-11-split-existing-levels.sql
 
-# 3. DEPOIS do deploy, com o site novo testado: apaga a coluna antiga.
+# 3. AFTER the deploy, with the new site tested: drops the old column.
 wrangler d1 execute hybris-files --remote --file=db/migrations/2026-08-11-drop-active.sql
 ```
 
-Os bindings `DB` e `FILES` **não** são configurados no painel: eles vivem no
-[`wrangler.toml`](wrangler.toml) e são aplicados pelo próprio deploy, graças ao
-campo `pages_build_output_dir`. Mudou binding, é só publicar de novo.
+The `DB` and `FILES` bindings are **not** configured in the dashboard: they
+live in [`wrangler.toml`](wrangler.toml) and are applied by the deploy
+itself, thanks to the `pages_build_output_dir` field. Change a binding, just
+publish again.
 
-O `IP_SALT` é a exceção — segredo não vai para arquivo versionado, vai por
-`wrangler pages secret put` (uma vez para `production`, outra com `--env=preview`).
+`IP_SALT` is the exception — a secret doesn't go into a versioned file, it
+goes through `wrangler pages secret put` (once for `production`, once more
+with `--env=preview`).
 
-Falta ainda, no painel: o custom domain `files.hybris.world` (Pages project →
-*Custom domains*), que o wrangler 3 não sabe criar. E, no GitHub,
-os secrets `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID`.
+Still missing, in the dashboard: the custom domain `files.hybris.world`
+(Pages project → *Custom domains*), which wrangler 3 can't create. And, on
+GitHub, the secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 
-## Desenvolvimento
+## Development
 
 ```bash
 npm install
-npm run dev      # só as páginas; /api/download não responde neste modo
+npm run dev      # pages only; /api/download doesn't respond in this mode
 npm run build
-npm run preview  # dist/ + Functions + bindings locais — é aqui que se testa o download
+npm run preview  # dist/ + Functions + local bindings — this is where you test the download
 ```
 
-Para o `preview` funcionar, crie um `.dev.vars` (fora do git) com:
+For `preview` to work, create a `.dev.vars` (outside git) with:
 
 ```
 IP_SALT=qualquer-coisa-para-teste
 ```
 
-e popule o banco local com `npm run db:init:local` e `npm run db:seed:local`.
+and populate the local database with `npm run db:init:local` and
+`npm run db:seed:local`.
 
-## Códigos de acesso
+## Access codes
 
-- 8 caracteres do alfabeto `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (sem `I`, `O`,
-  `0`, `1`, que se confundem quando alguém digita a partir de um email).
-- Gerados com `randomInt` do `node:crypto`.
-- Um código abre os arquivos até o **nível** dele, quantas vezes quiser.
-- Aceita digitação com hífen, espaço ou minúscula — a Function normaliza.
+- 8 characters from the alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no `I`,
+  `O`, `0`, `1`, which get confused when someone types from an email).
+- Generated with `randomInt` from `node:crypto`.
+- A code unlocks files up to its **level**, as many times as needed.
+- Accepts input with hyphens, spaces, or lowercase — the Function normalizes it.
 
 ```bash
-npm run gen:codes                    # 100 códigos de nível 10
+npm run gen:codes                    # 100 level-10 codes
 node scripts/gen-codes.mjs 40 --level=30
 ```
 
-Com `db/labels.txt` (um rótulo por linha) os códigos saem nominais, e o nível
-pode vir por linha — o `--level` vale para as que não trouxerem o seu:
+With `db/labels.txt` (one label per line), codes come out named, and the
+level can be given per line — `--level` applies to the ones that don't
+bring their own:
 
 ```
 Ana Souza, 40
-Produtora X, 20
-Contato de festival
+Producer X, 20
+Festival contact
 ```
 
-O default é o nível mais baixo de propósito: subir um código depois é um
-`UPDATE`; recolher material que já foi baixado não é.
+The default is the lowest level on purpose: raising a code later is an
+`UPDATE`; pulling back material that's already been downloaded is not.
 
-**`db/codes.csv`, `db/seed-codes.sql` e `db/labels.txt` estão no `.gitignore` e
-não podem ser commitados — este repositório é público.** Guarde o CSV num lugar
-seguro; é a sua única cópia da relação código ↔ pessoa ↔ nível.
+**`db/codes.csv`, `db/seed-codes.sql` and `db/labels.txt` are in
+`.gitignore` and must never be committed — this repository is public.**
+Keep the CSV somewhere safe; it's your only copy of the code ↔ person ↔
+level mapping.
 
-Para bloquear um código, ou mudar o nível dele:
+To block a code, or change its level:
 
 ```bash
 wrangler d1 execute hybris-files --remote \
-  --command="UPDATE codes SET level = 0  WHERE code = 'XXXXXXXX'"   # bloqueia
+  --command="UPDATE codes SET level = 0  WHERE code = 'XXXXXXXX'"   # block
 wrangler d1 execute hybris-files --remote \
-  --command="UPDATE codes SET level = 30 WHERE code = 'XXXXXXXX'"   # promove
+  --command="UPDATE codes SET level = 30 WHERE code = 'XXXXXXXX'"   # promote
 ```
 
-A mudança vale no acesso seguinte: o nível é lido a cada `POST`, não há sessão
-nem cache no meio.
+The change takes effect on the next access: the level is read on every
+`POST`, there's no session or cache in between.
 
-## Estatísticas
+## Statistics
 
-### Painel no navegador
+### Browser dashboard
 
 ```
 https://files.hybris.world/stats/<STATS_TOKEN>
 ```
 
-Mostra os totais, os downloads por arquivo e os códigos **agrupados por nível
-de acesso** — cada grupo diz quais arquivos aquele nível abre, e lista quantos
-downloads, quantos daqueles arquivos e o último acesso de cada código. Códigos
-nunca usados aparecem esmaecidos; o grupo do nível 0 (bloqueados) só aparece
-quando há alguém nele.
+Shows the totals, downloads per file, and codes **grouped by access
+level** — each group states which files that level unlocks, and lists how
+many downloads, how many of those files, and the last access for each code.
+Codes that were never used appear dimmed; the level-0 (blocked) group only
+shows up when there's someone in it.
 
-Cada grupo dobra num accordion, com atalhos para expandir ou recolher todos. O
-HTML sai do servidor com tudo aberto e quem recolhe é o script, no
-carregamento: sem JavaScript a página continua inteira e legível, só não dobra.
+Each group collapses into an accordion, with shortcuts to expand or
+collapse all. The HTML comes from the server with everything open, and it's
+the script that collapses it on load: without JavaScript the page stays
+whole and legible, it just doesn't collapse.
 
-**A URL é a credencial.** O token esperado vive no secret `STATS_TOKEN`, nunca
-no código — este repositório é público. Token errado devolve `404`, não `403`,
-para não confirmar que o caminho existe.
+**The URL is the credential.** The expected token lives in the `STATS_TOKEN`
+secret, never in code — this repository is public. A wrong token returns
+`404`, not `403`, so as not to confirm the path exists.
 
-Como a página lista os códigos em claro, ela responde com `no-store`,
-`noindex` e `Referrer-Policy: no-referrer` — sem essa última, a URL secreta
-viajaria no `Referer` de qualquer link clicado a partir dela.
+Since the page lists codes in plaintext, it responds with `no-store`,
+`noindex`, and `Referrer-Policy: no-referrer` — without that last one, the
+secret URL would travel in the `Referer` header of any link clicked from it.
 
-A entropia do token é a defesa principal, mas não a única: cada token errado é
-gravado com `ok = 3` (o slug-sentinela `__stats__`) e, depois de 10 erros por
-IP em 15 minutos, o IP é trancado. O bloqueio também responde `404`, para não
-confirmar que a rota existe nem quando o freio está ativo.
+The token's entropy is the main defense, but not the only one: every wrong
+token is logged with `ok = 3` (the sentinel slug `__stats__`) and, after 10
+errors per IP in 15 minutes, the IP gets locked out. The lockout also
+returns `404`, so as not to confirm the route exists even when the throttle
+is active.
 
-Para trocar o token:
+To rotate the token:
 
 ```bash
 printf 'NOVO_TOKEN' | wrangler pages secret put STATS_TOKEN --project-name=files-hybris-world
 ```
 
-### Pela linha de comando
+### From the command line
 
 ```bash
 npm run stats
 ```
 
-Roda as consultas de [`db/stats.sql`](db/stats.sql): downloads por arquivo, quem
-baixou o quê, códigos entregues que nunca foram usados, quantos códigos há em
-cada nível, tentativas inválidas por dia e quem bateu num arquivo acima do
-próprio nível.
+Runs the queries in [`db/stats.sql`](db/stats.sql): downloads per file, who
+downloaded what, delivered codes that were never used, how many codes exist
+at each level, invalid attempts per day, and who hit a file above their own
+level.
 
-O log guarda `label` copiado no momento do acesso, então revogar ou renomear um
-código depois não reescreve o histórico. Tentativas inválidas também são
-registradas — é o que denuncia um código circulando fora da lista.
+The log stores the `label` as copied at the moment of access, so revoking or
+renaming a code later doesn't rewrite the history. Invalid attempts are also
+logged — that's what exposes a code circulating outside the list.
 
-Não guardamos IP: o campo `ip_hash` é `SHA-256(IP_SALT + IP)`, o suficiente para
-agrupar um mesmo visitante e sustentar o freio de força bruta (10 tentativas
-inválidas por IP a cada 15 minutos).
+We don't store the IP: the `ip_hash` field is `SHA-256(IP_SALT + IP)`,
+enough to group a given visitor and support the brute-force throttle (10
+invalid attempts per IP every 15 minutes).
 
-## Segurança
+## Security
 
-Análise do controle de acesso (2026-08-11). A pergunta: há como obter os
-arquivos sem um código cadastrado?
+Access-control analysis (2026-08-11). The question: is there any way to get
+the files without a registered code?
 
-Pela lógica da aplicação, não. O que segura:
+By the application's logic, no. What holds it together:
 
-- O objeto R2 nunca é exposto: sai como stream por `POST /api/download`, sem URL
-  pública nem redirect assinado.
-- **O bucket `hybris-files` é privado** (verificado). As `r2Key` são previsíveis
-  (`hybris/01-one-pager.pdf` … `04-…`) e este repositório é público, então um
-  bucket público entregaria tudo direto. Ele tem de continuar privado: antes de
-  qualquer mudança no R2, reconfirmar que não há *Public access (r2.dev)* nem
-  custom domain apontando para o bucket.
-- SQL sempre parametrizado (sem injection). O `slug` vem de `FILE_BY_SLUG`, nunca
-  direto na query.
-- `Cache-Control: private, no-store` no download impede a borda da Cloudflare de
-  servir o arquivo a quem não digitou código.
-- Nível default 0 (fail-closed): um `INSERT` que esqueça a coluna não abre nada.
-- Códigos com `crypto.randomInt`, ~40 bits de entropia (32⁸). É a entropia que
-  segura o brute force, não o freio de 10 tentativas por IP a cada 15 min: esse
-  freio usa o `ip_hash` como chave, e um atacante com rotação de IP o ignora.
+- The R2 object is never exposed: it goes out as a stream via
+  `POST /api/download`, with no public URL and no signed redirect.
+- **The `hybris-files` bucket is private** (verified). The `r2Key` values are
+  predictable (`hybris/01-one-pager.pdf` … `04-…`) and this repository is
+  public, so a public bucket would hand everything over directly. It has to
+  stay private: before any change to R2, reconfirm that there's no *Public
+  access (r2.dev)* and no custom domain pointing at the bucket.
+- SQL is always parameterized (no injection). The `slug` comes from
+  `FILE_BY_SLUG`, never straight into the query.
+- `Cache-Control: private, no-store` on the download prevents the Cloudflare
+  edge from serving the file to anyone who didn't enter a code.
+- Default level 0 (fail-closed): an `INSERT` that forgets the column
+  unlocks nothing.
+- Codes use `crypto.randomInt`, ~40 bits of entropy (32⁸). It's that entropy
+  that holds off brute force, not the throttle of 10 attempts per IP every
+  15 minutes: that throttle keys off `ip_hash`, and an attacker rotating IPs
+  ignores it.
 
-### Endurecimento pendente
+### Pending hardening
 
-Por ordem de retorno:
+In order of return:
 
-1. **Preview compartilha produção.** `env.preview` no `wrangler.toml` aponta para
-   o mesmo D1 e o mesmo R2. Preview deployments (`<hash>.files-hybris-world.pages.dev`)
-   são públicos por padrão, então os arquivos reais ficam acessíveis por eles com
-   os códigos reais. Ligar **Cloudflare Access** nos previews, ou apontar o
-   preview para um bucket/DB descartável.
-2. **A URL de `/stats` é chave-mestra.** Lista todos os códigos em claro e não
-   expira. A adivinhação do token já tem freio (10 erros por IP em 15 min,
-   `ok = 3`), mas o freio não protege contra vazamento da URL certa: se ela
-   escapar, todos os códigos vão junto, sem alarme. Manter `STATS_TOKEN` com ≥32
-   chars aleatórios e considerar mascarar os códigos no painel (só os últimos
-   dígitos).
-3. **Dois bugs no sistema de acesso** (não são brechas, mas quebram função):
-   - `scripts/gen-codes.mjs` ainda faz `INSERT` com a coluna `active`, removida na
-     migração `2026-08-11-access-levels.sql`, então o seed de códigos novos falha.
-     Trocar por `level`.
-   - `functions/stats/[token].ts` referencia `r.active` (inexistente), então toda
-     linha do painel aparece como "revogado". Deveria ser `r.level <= 0`.
-4. **`account_id` versionado.** Não é segredo, mas num repo público entrega
-   conta, projeto e nomes exatos para um ataque direcionado.
+1. **Preview shares production.** `env.preview` in `wrangler.toml` points
+   at the same D1 and the same R2. Preview deployments
+   (`<hash>.files-hybris-world.pages.dev`) are public by default, so the
+   real files are reachable through them with the real codes. Turn on
+   **Cloudflare Access** on previews, or point preview at a disposable
+   bucket/DB.
+2. **The `/stats` URL is a master key.** It lists every code in plaintext
+   and never expires. Guessing the token already has a throttle (10 errors
+   per IP in 15 min, `ok = 3`), but the throttle doesn't protect against the
+   correct URL leaking: if it gets out, every code goes with it, without any
+   alarm. Keep `STATS_TOKEN` at ≥32 random characters and consider masking
+   the codes in the dashboard (only the last few digits).
+3. **Two bugs in the access system** (not vulnerabilities, but they break
+   functionality):
+   - `scripts/gen-codes.mjs` still does an `INSERT` with the `active`
+     column, removed in the `2026-08-11-access-levels.sql` migration, so
+     seeding new codes fails. Swap it for `level`.
+   - `functions/stats/[token].ts` references `r.active` (doesn't exist), so
+     every row in the dashboard shows up as "revoked". It should be
+     `r.level <= 0`.
+4. **`account_id` is versioned.** Not a secret, but in a public repo it
+   hands a targeted attacker the exact account, project, and names.
 
 ## Deploy
 
-Push na `main` dispara `.github/workflows/deploy.yml`, que builda o Astro e
-publica no Cloudflare Pages.
+A push to `main` triggers `.github/workflows/deploy.yml`, which builds
+Astro and publishes to Cloudflare Pages.
 
-Dois detalhes do workflow que parecem supérfluos e não são:
+Two details of the workflow that look superfluous and aren't:
 
-- O job de deploy faz `actions/checkout` **de propósito**: o wrangler compila
-  `functions/` a partir do diretório corrente, e o artifact carrega apenas o
-  `dist/`. Sem o checkout, o site subiria sem a Function e todo download
-  quebraria com 405.
-- O `pages deploy` roda **sem argumento de diretório**. O diretório vem do
-  `pages_build_output_dir`; passar os dois é erro de validação.
+- The deploy job runs `actions/checkout` **on purpose**: wrangler compiles
+  `functions/` from the current directory, and the artifact only carries
+  `dist/`. Without the checkout, the site would go up without the Function
+  and every download would break with a 405.
+- `pages deploy` runs **with no directory argument**. The directory comes
+  from `pages_build_output_dir`; passing both is a validation error.

@@ -10,6 +10,8 @@ dist/
 db/seed-codes.sql
 db/codes.csv
 db/labels.txt
+# Cópias de segurança dessas listas, feitas antes de mexer nos níveis.
+db/*.bak
 
 # Os PDFs vivem no R2, não aqui.
 *.pdf

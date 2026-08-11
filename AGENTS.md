@@ -15,9 +15,16 @@ adicionar uma dependência, releia esta frase.
 
 ```
 GET  /d/<slug>        página estática com o formulário de código
-POST /api/download    valida no D1 → grava em access_log → streama do R2
+POST /api/download    valida no D1 → confere o nível → grava em access_log
+                      → streama do R2
 GET  /stats/<token>   painel de acessos (o token é a credencial)
 ```
+
+Cada arquivo tem um **nível** (10, 20, 30, 40, na ordem de exposição do
+material) e cada código carrega o seu: ele abre todo arquivo de nível igual ou
+menor. Nível 0 não abre nada — é assim que se bloqueia um código sem apagá-lo.
+A regra mora em `canAccess()`, em `shared/files.ts`, e não deve ser reescrita
+de memória em nenhum outro lugar.
 
 Isto **não** é o hotsite. O hotsite (`metron-hotsite` / `metron-hotsite-beta`) é
 outro repositório, com outro fluxo de promote. Não misture os dois.
@@ -46,6 +53,9 @@ antes.
 | `functions/api/download.ts` | `Cache-Control: private, no-store` na resposta do arquivo | sem isso a borda da Cloudflare pode servir o PDF a quem não digitou código |
 | idem | freio de 10 tentativas inválidas por IP a cada 15 min | 100 códigos válidos seriam varridos rápido sem isso |
 | idem | tentativa inválida também vira linha em `access_log` (`ok = 0`) | é o sinal de que um código vazou e está circulando |
+| idem | código barrado pelo nível é `ok = 2`, fora do freio | quem tem código da lista não pode ser trancado por bater numa porta que não é dele; e a estatística separa "pediu demais" de "código vazado" |
+| idem | nível 0 devolve a mesma mensagem de código inválido | quem digita um código já bloqueado não precisa saber que ele existiu |
+| `shared/files.ts` | `canAccess()` é a única regra de autorização | reescrever a comparação em outro arquivo é como o `>=` vira `>` sem ninguém notar |
 | idem | `label` copiado para o log no momento do acesso | revogar ou renomear um código depois não reescreve a história |
 | idem | IP guardado só como `SHA-256(IP_SALT + IP)` | agrupa visitante e sustenta o freio sem reter dado pessoal em claro |
 | `functions/stats/[token].ts` | token errado devolve **404**, não 403 | quem chutar não descobre que a rota existe |
@@ -59,22 +69,27 @@ disso no checklist.
 ## Onde fica o quê
 
 ```
-shared/files.ts          Catálogo dos 4 arquivos: slug, título, r2Key, nome de
-                         download. FONTE ÚNICA DE VERDADE — importado tanto
-                         pelas páginas quanto pelas Functions. Adicionar um
-                         arquivo é editar só este array.
+shared/files.ts          Catálogo dos 4 arquivos: slug, título, nível, r2Key,
+                         nome de download, mais os níveis e o `canAccess()`.
+                         FONTE ÚNICA DE VERDADE — importado tanto pelas páginas
+                         quanto pelas Functions. Adicionar um arquivo é editar
+                         só este array.
 functions/
-  api/download.ts        Validação, log e streaming do R2.
-  stats/[token].ts       Painel de acessos (HTML gerado em TS).
+  api/download.ts        Validação, checagem de nível, log e streaming do R2.
+  stats/[token].ts       Painel de acessos, agrupado por nível (HTML em TS).
 src/
   pages/d/[slug].astro   As 4 páginas de código, via getStaticPaths.
   pages/index.astro      Página neutra; não lista nada.
   layouts/Layout.astro   <head>, noindex.
   styles/global.css      CSS puro, paleta herdada da key art da Metron.
 db/
-  schema.sql             Tabelas `codes` e `access_log`. Idempotente.
+  schema.sql             Tabelas `codes` e `access_log`. Idempotente. Descreve
+                         o banco como ele é hoje; serve para criar do zero.
+  migrations/*.sql       Mudanças em banco que já existe. Cada uma roda UMA vez.
   stats.sql              Consultas de leitura (`npm run stats`).
-scripts/gen-codes.mjs    Gerador dos códigos.
+scripts/gen-codes.mjs    Gerador dos códigos (`--level=N`, ou nível por linha
+                         em db/labels.txt). Duplica a lista de níveis porque é
+                         .mjs e não importa o .ts — mudou lá, mude aqui.
 wrangler.toml            Bindings D1 + R2, aplicados no deploy.
 ```
 
@@ -145,7 +160,9 @@ wrangler d1 execute hybris-files --remote --command="DELETE FROM access_log"
 ## Trocar ou acrescentar um arquivo
 
 1. Suba o PDF: `wrangler r2 object put hybris-files/hybris/<key> --file="..." --content-type=application/pdf`
-2. Edite **só** `shared/files.ts` — as páginas e a Function acompanham sozinhas.
+2. Edite **só** `shared/files.ts` — as páginas, a Function e o painel acompanham
+   sozinhos. O `level` do arquivo novo decide quem já pode abri-lo: entrar com
+   nível 10 libera o material para todos os códigos existentes de uma vez.
 3. `npm run build` e deploy.
 
 Trocando o conteúdo mantendo o mesmo `r2Key`, não há cache a furar: a resposta

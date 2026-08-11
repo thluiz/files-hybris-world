@@ -51,10 +51,12 @@ const { file } = Astro.props;
   const reason = new URLSearchParams(location.search).get('erro');
   if (reason) {
     const box = document.getElementById('error');
-    box.textContent =
-      reason === 'rate'
-        ? 'Too many attempts. Please wait a few minutes and try again.'
-        : 'That access code is not valid.';
+    const messages = {
+      rate: 'Too many attempts. Please wait a few minutes and try again.',
+      // Código da lista, mas para um material que não foi liberado a ele.
+      nivel: 'Your access code does not cover this document. Please contact Metron Showrunners.',
+    };
+    box.textContent = messages[reason] || 'That access code is not valid.';
     box.hidden = false;
     document.getElementById('code').focus();
   }

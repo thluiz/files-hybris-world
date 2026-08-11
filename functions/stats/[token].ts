@@ -11,7 +11,7 @@
  * Esta página lista os códigos em claro. Se ela vazar, vaza tudo — por isso o
  * noindex, o no-store e a resposta 404 genérica.
  */
-import { FILES } from '../../shared/files';
+import { ACCESS_LEVELS, FILES, filesForLevel, levelSummary } from '../../shared/files';
 
 export interface Env {
   DB: D1Database;
@@ -36,18 +36,27 @@ function esc(value: unknown): string {
     .replace(/"/g, '&quot;');
 }
 
+/**
+ * Denominador da coluna "Arquivos": quantos o nível abre.
+ *
+ * No nível 0 não há denominador — o que aquele código baixou, baixou antes de
+ * ser bloqueado, e dividir por zero arquivos não diria nada.
+ */
+function scopeOf(level: number): string {
+  const n = filesForLevel(level).length;
+  return n > 0 ? `/${n}` : '';
+}
+
 /** "2026-08-11T02:31:07.123Z" → "11/08 02:31" */
 function shortDate(ts: string | null): string {
   if (!ts) return '—';
   return `${ts.slice(8, 10)}/${ts.slice(5, 7)} ${ts.slice(11, 16)}`;
 }
 
-const TITLE_BY_SLUG = Object.fromEntries(FILES.map((f) => [f.slug, f.title]));
-
 interface CodeRow {
   label: string;
   code: string;
-  active: number;
+  level: number;
   downloads: number;
   arquivos: number;
   ultimo: string | null;
@@ -67,9 +76,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
     return notFound;
   }
 
-  const [codes, byFile, invalid] = await Promise.all([
+  const [codes, byFile, invalid, denied] = await Promise.all([
     env.DB.prepare(
-      `SELECT c.label, c.code, c.active,
+      `SELECT c.label, c.code, c.level,
               COUNT(a.id)             AS downloads,
               COUNT(DISTINCT a.slug)  AS arquivos,
               MAX(a.ts)               AS ultimo
@@ -86,18 +95,43 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
     env.DB.prepare(
       `SELECT COUNT(*) AS n FROM access_log WHERE ok = 0`
     ).first<{ n: number }>(),
+    // Código válido barrado pelo nível: não é código vazado, é alguém pedindo
+    // material que não foi liberado para ele.
+    env.DB.prepare(
+      `SELECT COUNT(*) AS n FROM access_log WHERE ok = 2`
+    ).first<{ n: number }>(),
   ]);
 
   const rows = codes.results ?? [];
   const usados = rows.filter((r) => r.downloads > 0).length;
   const totalDownloads = rows.reduce((sum, r) => sum + r.downloads, 0);
+  const bloqueados = rows.filter((r) => r.level <= 0).length;
 
   // Ordena pelo catálogo, não pelo que o banco devolveu: arquivo sem nenhum
   // download precisa aparecer na tabela como zero, não sumir dela.
   const fileStats = FILES.map((f) => {
     const hit = (byFile.results ?? []).find((b) => b.slug === f.slug);
-    return { title: f.title, downloads: hit?.downloads ?? 0, pessoas: hit?.pessoas ?? 0 };
+    return {
+      title: f.title,
+      level: f.level,
+      downloads: hit?.downloads ?? 0,
+      pessoas: hit?.pessoas ?? 0,
+    };
   });
+
+  // Um grupo por nível do catálogo, na ordem da escada. Um código com nível
+  // fora da lista (digitado à mão num UPDATE) não pode sumir do painel — vai
+  // para um grupo próprio, no fim, onde salta aos olhos.
+  const known = new Set<number>(ACCESS_LEVELS);
+  const extras = [...new Set(rows.map((r) => r.level).filter((l) => !known.has(l)))].sort(
+    (a, b) => a - b
+  );
+  const groups = [...ACCESS_LEVELS, ...extras].map((level) => ({
+    level,
+    known: known.has(level),
+    abre: levelSummary(level),
+    codes: rows.filter((r) => r.level === level),
+  }));
 
   const html = `<!doctype html>
 <html lang="pt-BR">
@@ -134,6 +168,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
   tr.zero td { color:#8a7a63; }
   .off { color:#8c2f22; font-size:.75rem; }
   .foot { margin-top:2.5rem; font-size:.8rem; color:var(--soft); }
+  .level { margin-bottom:1.75rem; }
+  .level-head { display:flex; flex-wrap:wrap; align-items:baseline; gap:.5rem .75rem;
+                padding:.35rem 0; border-bottom:2px solid rgba(26,18,10,.28); }
+  .level-head b { font-size:1.05rem; }
+  .level-head .abre { color:var(--soft); font-size:.85rem; font-style:italic; }
+  .level-head .count { margin-left:auto; font-size:.75rem; letter-spacing:.1em;
+                       text-transform:uppercase; color:var(--soft); }
+  .level.blocked .level-head { border-bottom-color:#8c2f22; }
+  .level.blocked .level-head b { color:#8c2f22; }
+  .level.unknown .level-head b::after { content:' (fora da escala)'; font-size:.75rem;
+                                        color:#8c2f22; font-weight:400; }
+  .empty { margin:.6rem 0 0; font-size:.85rem; color:#8a7a63; font-style:italic; }
 </style>
 </head>
 <body>
@@ -145,35 +191,55 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, env }) => {
     <div class="card"><b>${totalDownloads}</b><span>downloads</span></div>
     <div class="card"><b>${usados}/${rows.length}</b><span>códigos usados</span></div>
     <div class="card"><b>${rows.length - usados}</b><span>nunca abertos</span></div>
+    <div class="card"><b>${bloqueados}</b><span>bloqueados (nível 0)</span></div>
     <div class="card"><b>${invalid?.n ?? 0}</b><span>tentativas inválidas</span></div>
+    <div class="card"><b>${denied?.n ?? 0}</b><span>barrados por nível</span></div>
   </div>
 
   <h2>Por arquivo</h2>
   <div class="scroll"><table>
-    <tr><th>Arquivo</th><th class="num">Downloads</th><th class="num">Pessoas</th></tr>
+    <tr><th>Arquivo</th><th class="num">Nível</th><th class="num">Downloads</th>
+        <th class="num">Pessoas</th></tr>
     ${fileStats
       .map(
         (f) => `<tr class="${f.downloads === 0 ? 'zero' : ''}">
-      <td>${esc(f.title)}</td><td class="num">${f.downloads}</td><td class="num">${f.pessoas}</td></tr>`
+      <td>${esc(f.title)}</td><td class="num">${f.level}</td>
+      <td class="num">${f.downloads}</td><td class="num">${f.pessoas}</td></tr>`
       )
       .join('')}
   </table></div>
 
-  <h2>Por código</h2>
-  <div class="scroll"><table>
-    <tr><th>Convidado</th><th>Código</th><th class="num">Downloads</th>
-        <th class="num">Arquivos</th><th>Último acesso</th></tr>
-    ${rows
-      .map(
-        (r) => `<tr class="${r.downloads === 0 ? 'zero' : ''}">
-      <td>${esc(r.label)}${r.active ? '' : ' <span class="off">revogado</span>'}</td>
-      <td><code>${esc(r.code.slice(0, 4))}-${esc(r.code.slice(4))}</code></td>
-      <td class="num">${r.downloads}</td>
-      <td class="num">${r.arquivos}/${FILES.length}</td>
-      <td>${esc(shortDate(r.ultimo))}</td></tr>`
-      )
-      .join('')}
-  </table></div>
+  <h2>Por nível de acesso</h2>
+  ${groups
+    .filter((g) => g.codes.length > 0 || (g.known && g.level > 0))
+    .map(
+      (g) => `<div class="level${g.level <= 0 ? ' blocked' : ''}${g.known ? '' : ' unknown'}">
+    <div class="level-head">
+      <b>Nível ${g.level}</b>
+      <span class="abre">${g.level <= 0 ? 'não abre nada' : `abre ${esc(g.abre)}`}</span>
+      <span class="count">${g.codes.length} ${g.codes.length === 1 ? 'código' : 'códigos'}</span>
+    </div>
+    ${
+      g.codes.length === 0
+        ? '<p class="empty">Nenhum código neste nível.</p>'
+        : `<div class="scroll"><table>
+      <tr><th>Convidado</th><th>Código</th><th class="num">Downloads</th>
+          <th class="num">Arquivos</th><th>Último acesso</th></tr>
+      ${g.codes
+        .map(
+          (r) => `<tr class="${r.downloads === 0 ? 'zero' : ''}">
+        <td>${esc(r.label)}</td>
+        <td><code>${esc(r.code.slice(0, 4))}-${esc(r.code.slice(4))}</code></td>
+        <td class="num">${r.downloads}</td>
+        <td class="num">${r.arquivos}${scopeOf(g.level)}</td>
+        <td>${esc(shortDate(r.ultimo))}</td></tr>`
+        )
+        .join('')}
+    </table></div>`
+    }
+  </div>`
+    )
+    .join('')}
 
   <p class="foot">Esta página mostra os códigos em claro. Não compartilhe a URL.</p>
 </div>

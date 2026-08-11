@@ -11,14 +11,23 @@ FROM access_log WHERE ok = 1
 ORDER BY ts DESC LIMIT 50;
 
 -- Códigos que nunca foram usados (entregues e não abertos)
-SELECT c.label, c.code
+SELECT c.level, c.label, c.code
 FROM codes c
 LEFT JOIN access_log a ON a.code = c.code AND a.ok = 1
-WHERE a.id IS NULL AND c.active = 1
-ORDER BY c.label;
+WHERE a.id IS NULL AND c.level > 0
+ORDER BY c.level DESC, c.label;
+
+-- Quantos códigos em cada nível
+SELECT level, COUNT(*) AS codigos
+FROM codes GROUP BY level ORDER BY level;
 
 -- Tentativas inválidas por dia: sinal de código vazado ou varredura
 SELECT substr(ts, 1, 10) AS dia, COUNT(*) AS tentativas,
        COUNT(DISTINCT ip_hash) AS origens
 FROM access_log WHERE ok = 0
 GROUP BY dia ORDER BY dia DESC LIMIT 30;
+
+-- Quem bateu num arquivo acima do próprio nível. Não é código vazado: é
+-- alguém pedindo material que não foi liberado a ele.
+SELECT ts, label, slug FROM access_log
+WHERE ok = 2 ORDER BY ts DESC LIMIT 50;

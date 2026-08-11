@@ -155,3 +155,49 @@ button:focus-visible {
   font-size: 0.82rem;
   color: var(--ink-soft);
 }
+
+/* ── Índice dos materiais ──────────────────────────── */
+.materials {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.materials li + li {
+  margin-top: 0.6rem;
+}
+
+.materials a {
+  display: block;
+  padding: 0.9rem 1.1rem;
+  color: var(--ink);
+  text-decoration: none;
+  background-color: rgba(255, 255, 255, 0.42);
+  border: 1px solid rgba(26, 18, 10, 0.22);
+  border-radius: 2px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.materials a:hover {
+  background-color: rgba(255, 255, 255, 0.72);
+  border-color: var(--gold);
+}
+
+.materials a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.material-title {
+  display: block;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 0.95rem;
+}
+
+.material-desc {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}

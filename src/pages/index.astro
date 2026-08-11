@@ -1,15 +1,39 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import '../styles/global.css';
+import { FILES } from '../../shared/files';
+
+// Os títulos do catálogo já trazem "Hybris —" na frente; aqui isso seria
+// repetido quatro vezes debaixo do próprio título da página.
+const items = FILES.map((f) => ({
+  ...f,
+  shortTitle: f.title.replace(/^Hybris\s*—\s*/, ''),
+}));
 ---
-<Layout title="Metron Showrunners">
+<Layout title="Hybris Project — Metron Showrunners">
   <main class="card">
     <p class="brand">Metron Showrunners</p>
-    <h1>Restricted materials</h1>
+
+    <h1>Hybris Project</h1>
     <hr class="rule" />
     <p class="description">
-      These materials are shared by direct invitation. Please use the link and
-      access code you received.
+      An Ancient Conflict, Reimagined. Select a document to continue.
+    </p>
+
+    <ul class="materials">
+      {items.map((f) => (
+        <li>
+          <a href={`/d/${f.slug}`}>
+            <span class="material-title">{f.shortTitle}</span>
+            <span class="material-desc">{f.description}</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+
+    <p class="footnote">
+      An access code is required. This material is confidential and shared by
+      invitation only.
     </p>
   </main>
 </Layout>

@@ -157,6 +157,28 @@ button:focus-visible {
   color: var(--ink-soft);
 }
 
+/* Way back to the index. Whoever arrives from a direct link has no other
+   way of knowing the other documents exist. */
+.back-link {
+  display: inline-block;
+  margin-top: 1.75rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.back-link:hover {
+  color: var(--ink);
+  border-bottom-color: var(--gold);
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
 /* ── Materials index ──────────────────────────────── */
 .materials {
   list-style: none;

@@ -190,9 +190,9 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
-/* Inline SVG, not an emoji: the house emoji renders differently on every
-   platform and would clash with Cinzel. `currentColor` makes it follow the
-   link's own hover state. */
+/* Inline SVG, not an emoji: emoji render differently on every platform and
+   would clash with Cinzel. `currentColor` makes it follow the link's own
+   hover state. The bullets matter — lines alone would read as a menu. */
 .back-icon {
   width: 1.05em;
   height: 1.05em;

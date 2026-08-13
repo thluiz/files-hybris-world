@@ -16,7 +16,34 @@ const { file } = Astro.props;
   <main class="card">
     <p class="brand">Metron Showrunners</p>
 
-    <h1>{file.title}</h1>
+    <h1>
+      <a
+        href="/"
+        class="title-link"
+        title="Back to all documents"
+        aria-label={`${file.title} — back to all documents`}
+      >
+        <svg
+          class="title-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M9.5 6.5h11" />
+          <path d="M9.5 12h11" />
+          <path d="M9.5 17.5h11" />
+          <path d="M4 6.5h.01" />
+          <path d="M4 12h.01" />
+          <path d="M4 17.5h.01" />
+        </svg>
+        <span>{file.title}</span>
+      </a>
+    </h1>
     <p class="description">{file.description}</p>
     <hr class="rule" />
 
@@ -38,28 +65,6 @@ const { file } = Astro.props;
       />
       <button type="submit">Access Content</button>
     </form>
-
-    <a class="back-link" href="/">
-      <svg
-        class="back-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        focusable="false"
-      >
-        <path d="M9.5 6.5h11" />
-        <path d="M9.5 12h11" />
-        <path d="M9.5 17.5h11" />
-        <path d="M4 6.5h.01" />
-        <path d="M4 12h.01" />
-        <path d="M4 17.5h.01" />
-      </svg>
-      <span>All documents</span>
-    </a>
 
     <p class="footnote">
       This material is confidential and shared by invitation only.

@@ -157,46 +157,39 @@ button:focus-visible {
   color: var(--ink-soft);
 }
 
-/* Way back to the index. Whoever arrives from a direct link has no other
-   way of knowing the other documents exist. */
-.back-link {
+/* The document title doubles as the way back to the index. Whoever arrives
+   from a direct link has no other way of knowing the other documents exist. */
+.title-link {
   display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 1.75rem;
-  font-size: 0.85rem;
-  color: var(--ink-soft);
+  align-items: baseline;
+  gap: 0.55rem;
+  color: inherit;
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
-/* The underline goes on the text only: spanning the icon too would read as a
-   line under the house. */
-.back-link span {
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s ease;
+.title-link:hover {
+  color: var(--gold);
 }
 
-.back-link:hover {
-  color: var(--ink);
-}
-
-.back-link:hover span {
-  border-bottom-color: var(--gold);
-}
-
-.back-link:focus-visible {
+.title-link:focus-visible {
   outline: 2px solid var(--gold);
-  outline-offset: 3px;
+  outline-offset: 4px;
 }
 
 /* Inline SVG, not an emoji: emoji render differently on every platform and
-   would clash with Cinzel. `currentColor` makes it follow the link's own
-   hover state. The bullets matter — lines alone would read as a menu. */
-.back-icon {
-  width: 1.05em;
-  height: 1.05em;
+   would clash with Cinzel. Sized in `em` so it scales with the title.
+   The bullets matter — lines alone would read as a menu. */
+.title-icon {
+  width: 0.6em;
+  height: 0.6em;
   flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.title-link:hover .title-icon {
+  opacity: 1;
 }
 
 /* ── Materials index ──────────────────────────────── */

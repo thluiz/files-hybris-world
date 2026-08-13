@@ -192,6 +192,46 @@ button:focus-visible {
   opacity: 1;
 }
 
+/* The same route, spelled out. The clickable title is too discreet to be the
+   only way out; here the destination is written. The icon repeats on purpose:
+   it is what ties the two together as the same thing. */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1.75rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+/* The underline goes on the text only: on the whole anchor it would become a
+   line running through the icon. */
+.back-link span {
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.back-link:hover {
+  color: var(--ink);
+}
+
+.back-link:hover span {
+  border-bottom-color: var(--gold);
+}
+
+.back-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.back-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+}
+
 /* ── Materials index ──────────────────────────────── */
 .materials {
   list-style: none;

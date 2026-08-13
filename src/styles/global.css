@@ -160,23 +160,43 @@ button:focus-visible {
 /* Way back to the index. Whoever arrives from a direct link has no other
    way of knowing the other documents exist. */
 .back-link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   margin-top: 1.75rem;
   font-size: 0.85rem;
   color: var(--ink-soft);
   text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+/* The underline goes on the text only: spanning the icon too would read as a
+   line under the house. */
+.back-link span {
   border-bottom: 1px solid transparent;
-  transition: color 0.2s ease, border-color 0.2s ease;
+  transition: border-color 0.2s ease;
 }
 
 .back-link:hover {
   color: var(--ink);
+}
+
+.back-link:hover span {
   border-bottom-color: var(--gold);
 }
 
 .back-link:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 3px;
+}
+
+/* Inline SVG, not an emoji: the house emoji renders differently on every
+   platform and would clash with Cinzel. `currentColor` makes it follow the
+   link's own hover state. */
+.back-icon {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
 }
 
 /* ── Materials index ──────────────────────────────── */

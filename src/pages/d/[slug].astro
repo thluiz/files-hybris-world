@@ -39,7 +39,24 @@ const { file } = Astro.props;
       <button type="submit">Access Content</button>
     </form>
 
-    <a class="back-link" href="/">← All documents</a>
+    <a class="back-link" href="/">
+      <svg
+        class="back-icon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <path d="M3 10.6 12 3.2l9 7.4" />
+        <path d="M5.6 9.5V20.3h12.8V9.5" />
+        <path d="M9.9 20.3v-5.6h4.2v5.6" />
+      </svg>
+      <span>All documents</span>
+    </a>
 
     <p class="footnote">
       This material is confidential and shared by invitation only.

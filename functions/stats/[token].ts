@@ -76,10 +76,37 @@ function scopeOf(level: number): string {
   return n > 0 ? `/${n}` : '';
 }
 
-/** "2026-08-11T02:31:07.123Z" -> "11/08 02:31" */
+/** Tampa, Florida. Handles the EST/EDT switch on its own — no hardcoded offset. */
+const DISPLAY_TZ = 'America/New_York';
+
+const shortDateFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: DISPLAY_TZ,
+  day: '2-digit',
+  month: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+const tzAbbrFormatter = new Intl.DateTimeFormat('en-US', {
+  timeZone: DISPLAY_TZ,
+  timeZoneName: 'short',
+});
+
+/** "EST" or "EDT", depending on the date given. */
+function tzAbbr(date: Date): string {
+  const part = tzAbbrFormatter.formatToParts(date).find((p) => p.type === 'timeZoneName');
+  return part?.value ?? 'ET';
+}
+
+/** "2026-08-11T02:31:07.123Z" (UTC, stored) -> "10/08 22:31" (America/New_York) */
 function shortDate(ts: string | null): string {
   if (!ts) return '—';
-  return `${ts.slice(8, 10)}/${ts.slice(5, 7)} ${ts.slice(11, 16)}`;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  const parts = shortDateFormatter.formatToParts(d);
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('day')}/${get('month')} ${get('hour')}:${get('minute')}`;
 }
 
 interface CodeRow {
@@ -268,7 +295,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   </p>
 
   <h1>Access to Hybris materials</h1>
-  <p class="sub">Updated at ${esc(shortDate(new Date().toISOString()))} UTC</p>
+  <p class="sub">Updated at ${esc(shortDate(new Date().toISOString()))} ${esc(tzAbbr(new Date()))}</p>
 
   <div class="cards">
     <div class="card"><b>${totalDownloads}</b><span>downloads</span></div>

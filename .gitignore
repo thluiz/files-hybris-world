@@ -13,5 +13,8 @@ db/labels.txt
 # Backup copies of these lists, made before touching the levels.
 db/*.bak
 
+# access_log dumps (real codes + labels) taken before a reset.
+db/backups/
+
 # PDFs live in R2, not here.
 *.pdf

@@ -192,6 +192,62 @@ button:focus-visible {
   opacity: 1;
 }
 
+/* Site home, one level up from the document index. Same color and hover
+   behavior as the neighboring link, no underline: it is a single glyph. */
+.home-link {
+  display: inline-flex;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.home-link:hover {
+  color: var(--gold);
+}
+
+.home-link:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* Sits right before .title-icon in the h1; the source-order space between
+   the two anchors isn't enough on its own. */
+h1 .home-link {
+  margin-right: 0.5rem;
+}
+
+.home-icon-sm {
+  width: 0.6em;
+  height: 0.6em;
+  flex-shrink: 0;
+  opacity: 0.55;
+  transition: opacity 0.2s ease;
+}
+
+.home-link:hover .home-icon-sm {
+  opacity: 1;
+}
+
+.home-icon-lg {
+  width: 1.05em;
+  height: 1.05em;
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
+}
+
+.home-link:hover .home-icon-lg {
+  opacity: 1;
+}
+
+.back-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 1.75rem;
+}
+
 /* The same route, spelled out. The clickable title is too discreet to be the
    only way out; here the destination is written. The icon repeats on purpose:
    it is what ties the two together as the same thing. */
@@ -199,7 +255,6 @@ button:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1.75rem;
   font-size: 0.85rem;
   color: var(--ink-soft);
   text-decoration: none;

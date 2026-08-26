@@ -124,6 +124,16 @@ interface FileRow {
   people: number;
 }
 
+interface FileGuestRow {
+  slug: string;
+  label: string;
+  code: string;
+  /** Null when the code no longer has a matching row in `codes`. */
+  level: number | null;
+  downloads: number;
+  last: string | null;
+}
+
 export const onRequestGet: PagesFunction<Env> = async ({ params, request, env }) => {
   const token = String(params.token ?? '');
   const notFound = new Response('Not found', { status: 404 });
@@ -158,7 +168,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     return notFound;
   }
 
-  const [codes, byFile, invalid, denied] = await Promise.all([
+  const [codes, byFile, fileGuests, invalid, denied] = await Promise.all([
     env.DB.prepare(
       `SELECT c.label, c.code, c.level,
               COUNT(a.id)             AS downloads,
@@ -174,6 +184,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
        FROM access_log WHERE ok = 1
        GROUP BY slug`
     ).all<FileRow>(),
+    // Who, per file: powers the accordion under "By file". Grouped by
+    // (slug, code) rather than by access_log row — a guest who downloaded the
+    // same file five times is one row here, not five.
+    //
+    // LEFT JOIN, not JOIN: `byFile` above counts straight from access_log, so
+    // this list must never disagree with it. A code missing from `codes`
+    // (shouldn't happen, but the local dataset has proven it can) would
+    // otherwise vanish from the guest list while still counting toward the
+    // header's total — a download the accordion can't explain.
+    env.DB.prepare(
+      `SELECT a.slug AS slug, COALESCE(c.label, a.code) AS label, a.code AS code,
+              c.level AS level,
+              COUNT(*)   AS downloads,
+              MAX(a.ts)  AS last
+       FROM access_log a
+       LEFT JOIN codes c ON c.code = a.code
+       WHERE a.ok = 1
+       GROUP BY a.slug, a.code
+       ORDER BY downloads DESC, label ASC`
+    ).all<FileGuestRow>(),
     env.DB.prepare(
       `SELECT COUNT(*) AS n FROM access_log WHERE ok = 0`
     ).first<{ n: number }>(),
@@ -190,15 +220,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   const blocked = rows.filter((r) => r.level <= 0).length;
 
   // Sorted by the catalog, not by whatever the database returned: a file with
-  // zero downloads still needs to show up in the table as zero, not vanish
-  // from it.
+  // zero downloads still needs to show up as zero, not vanish from the list.
   const fileStats = FILES.map((f) => {
     const hit = (byFile.results ?? []).find((b) => b.slug === f.slug);
     return {
+      slug: f.slug,
       title: f.title,
       level: f.level,
       downloads: hit?.downloads ?? 0,
       people: hit?.people ?? 0,
+      guests: (fileGuests.results ?? []).filter((g) => g.slug === f.slug),
     };
   });
 
@@ -255,7 +286,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
           border:1px solid #8c2f22; border-left-width:4px; border-radius:2px;
           color:#8c2f22; font-size:.9rem; }
   .warn b { letter-spacing:.02em; }
-  .level { margin-bottom:1.75rem; }
+  .level, .file { margin-bottom:1.75rem; }
   /* Button because the header is clickable: keyboard and screen-reader support
      come for free. The reset below undoes the button's appearance, not its
      behavior. */
@@ -307,23 +338,51 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   </div>
 
   <h2>By file</h2>
-  <div class="scroll"><table>
-    <tr><th>File</th><th class="num">Level</th><th class="num">Downloads</th>
-        <th class="num">People</th></tr>
-    ${fileStats
-      .map(
-        (f) => `<tr class="${f.downloads === 0 ? 'zero' : ''}">
-      <td>${esc(f.title)}</td><td class="num">${f.level}</td>
-      <td class="num">${f.downloads}</td><td class="num">${f.people}</td></tr>`
-      )
-      .join('')}
-  </table></div>
-
-  <h2>By access level</h2>
-  <div class="toolbar" id="toolbar" hidden>
+  <div class="toolbar" id="toolbar-files" hidden>
     <button type="button" data-all="open">Expand all</button>
     <button type="button" data-all="close">Collapse all</button>
   </div>
+  <div id="files-group">
+  ${fileStats
+    .map(
+      (f) => `<div class="file">
+    <button type="button" class="level-head" aria-expanded="true" aria-controls="file-${f.slug}">
+      <span class="caret" aria-hidden="true">▾</span>
+      <b>${esc(f.title)}</b>
+      <span class="abre">level ${f.level}</span>
+      <span class="count">${f.downloads} ${f.downloads === 1 ? 'download' : 'downloads'} · ${f.people} ${f.people === 1 ? 'guest' : 'guests'}</span>
+    </button>
+    <div class="level-body" id="file-${f.slug}">
+    ${
+      f.guests.length === 0
+        ? '<p class="empty">No one has downloaded this file yet.</p>'
+        : `<div class="scroll"><table>
+      <tr><th>Guest</th><th>Code</th><th class="num">Level</th>
+          <th class="num">Downloads</th><th>Last access</th></tr>
+      ${f.guests
+        .map(
+          (g) => `<tr>
+        <td>${esc(g.label)}</td>
+        <td><code>${esc(g.code.slice(0, 4))}-${esc(g.code.slice(4))}</code></td>
+        <td class="num">${g.level ?? '—'}</td>
+        <td class="num">${g.downloads}</td>
+        <td>${esc(shortDate(g.last))}</td></tr>`
+        )
+        .join('')}
+    </table></div>`
+    }
+    </div>
+  </div>`
+    )
+    .join('')}
+  </div>
+
+  <h2>By access level</h2>
+  <div class="toolbar" id="toolbar-levels" hidden>
+    <button type="button" data-all="open">Expand all</button>
+    <button type="button" data-all="close">Collapse all</button>
+  </div>
+  <div id="levels-group">
   ${groups
     .filter((g) => g.codes.length > 0 || (g.known && g.level > 0))
     .map(
@@ -357,41 +416,50 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   </div>`
     )
     .join('')}
+  </div>
 
 </div>
 
 <script>
-// Level accordion. The HTML comes from the server with everything open on
-// purpose: if this script doesn't run, the page stays whole and readable —
-// it just doesn't collapse. The collapsing itself happens here, on load.
+// Accordion, wired independently per group (files, access levels). The HTML
+// comes from the server with everything open on purpose: if this script
+// doesn't run, the page stays whole and readable — it just doesn't collapse.
+// The collapsing itself happens here, on load.
 (function () {
-  var heads = document.querySelectorAll('.level-head');
-  if (!heads.length) return;
+  function wireGroup(groupId, toolbarId) {
+    var group = document.getElementById(groupId);
+    if (!group) return;
+    var heads = group.querySelectorAll('.level-head');
+    if (!heads.length) return;
 
-  function set(head, open) {
-    head.setAttribute('aria-expanded', String(open));
-    document.getElementById(head.getAttribute('aria-controls')).hidden = !open;
+    function set(head, open) {
+      head.setAttribute('aria-expanded', String(open));
+      document.getElementById(head.getAttribute('aria-controls')).hidden = !open;
+    }
+
+    heads.forEach(function (head) {
+      // Starts collapsed, except an entry with no one yet: there, what
+      // matters is precisely the "nobody here" line.
+      var empty = head.parentNode.querySelector('.empty') !== null;
+      set(head, empty);
+      head.addEventListener('click', function () {
+        set(head, head.getAttribute('aria-expanded') !== 'true');
+      });
+    });
+
+    // The two buttons only exist for users with script; without it they'd do
+    // nothing.
+    var toolbar = document.getElementById(toolbarId);
+    toolbar.hidden = false;
+    toolbar.addEventListener('click', function (e) {
+      var action = e.target.getAttribute('data-all');
+      if (!action) return;
+      heads.forEach(function (head) { set(head, action === 'open'); });
+    });
   }
 
-  heads.forEach(function (head) {
-    // Starts collapsed, except the level that has no one yet: there, what
-    // matters is precisely the "no codes at this level" line.
-    var empty = head.parentNode.querySelector('.empty') !== null;
-    set(head, empty);
-    head.addEventListener('click', function () {
-      set(head, head.getAttribute('aria-expanded') !== 'true');
-    });
-  });
-
-  // The two buttons only exist for users with script; without it they'd do
-  // nothing.
-  var toolbar = document.getElementById('toolbar');
-  toolbar.hidden = false;
-  toolbar.addEventListener('click', function (e) {
-    var action = e.target.getAttribute('data-all');
-    if (!action) return;
-    heads.forEach(function (head) { set(head, action === 'open'); });
-  });
+  wireGroup('files-group', 'toolbar-files');
+  wireGroup('levels-group', 'toolbar-levels');
 })();
 </script>
 </body>

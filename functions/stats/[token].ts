@@ -109,6 +109,19 @@ function shortDate(ts: string | null): string {
   return `${get('day')}/${get('month')} ${get('hour')}:${get('minute')}`;
 }
 
+/**
+ * Tampa time, server-rendered, wrapped so the page's own script can
+ * re-render it in whoever is looking at the page's timezone instead — the
+ * `datetime` attribute carries the real UTC instant for that. Without JS,
+ * the Tampa time stays: still correct, just not local to the visitor.
+ */
+function timeTag(ts: string | null): string {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `<time class="ts" datetime="${d.toISOString()}">${esc(shortDate(ts))} ${esc(tzAbbr(d))}</time>`;
+}
+
 interface CodeRow {
   label: string;
   code: string;
@@ -363,7 +376,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   </p>
 
   <h1>Access to Hybris materials</h1>
-  <p class="sub">Updated at ${esc(shortDate(new Date().toISOString()))} ${esc(tzAbbr(new Date()))}</p>
+  <p class="sub">Updated at ${timeTag(new Date().toISOString())}</p>
 
   <div class="cards">
     <div class="card"><b>${totalDownloads}</b><span>downloads</span></div>
@@ -403,7 +416,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         <td><code>${esc(g.code.slice(0, 4))}-${esc(g.code.slice(4))}</code></td>
         <td class="num">${g.level ?? '—'}</td>
         <td class="num">${g.downloads}</td>
-        <td>${esc(shortDate(g.last))}</td></tr>`
+        <td>${timeTag(g.last)}</td></tr>`
         )
         .join('')}
     </table></div>`
@@ -459,7 +472,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
             const requires = FILE_BY_SLUG[ev.slug]?.level;
             return `<tr class="${ev.ok === 2 ? 'denied' : ''}">
           <td>${esc(title)}</td>
-          <td>${esc(shortDate(ev.ts))}</td>
+          <td>${timeTag(ev.ts)}</td>
           <td>${
             ev.ok === 1
               ? 'Downloaded'
@@ -526,6 +539,30 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 
   wireGroup('files-group', 'toolbar-files');
   wireGroup('levels-group', 'toolbar-levels');
+})();
+
+// Every timestamp is server-rendered in Tampa time (see the time tags'
+// text) with the real UTC instant in the datetime attribute. Re-render each
+// one in whoever has the page open's own timezone — Intl already knows it
+// without being told. Without this script the Tampa time stands, which is
+// still correct, just not local to the visitor.
+(function () {
+  var times = document.querySelectorAll('time.ts[datetime]');
+  if (!times.length) return;
+  var fmt = new Intl.DateTimeFormat(undefined, {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    hour12: false, timeZoneName: 'short',
+  });
+  times.forEach(function (el) {
+    var d = new Date(el.getAttribute('datetime'));
+    if (isNaN(d.getTime())) return;
+    var parts = fmt.formatToParts(d);
+    var get = function (type) {
+      var part = parts.filter(function (p) { return p.type === type; })[0];
+      return part ? part.value : '';
+    };
+    el.textContent = get('day') + '/' + get('month') + ' ' + get('hour') + ':' + get('minute') + ' ' + get('timeZoneName');
+  });
 })();
 </script>
 </body>

@@ -18,6 +18,27 @@ const { file } = Astro.props;
 
     <h1>
       <a
+        href="https://metronshowrunners.com"
+        class="home-link"
+        title="Metron Showrunners home"
+        aria-label="Metron Showrunners home"
+      >
+        <svg
+          class="home-icon-sm"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M3 11.5 12 4l9 7.5" />
+          <path d="M5.5 10v9a1 1 0 0 0 1 1h3v-6h5v6h3a1 1 0 0 0 1-1v-9" />
+        </svg>
+      </a>
+      <a
         href="/"
         class="title-link"
         title="Back to all documents"
@@ -66,27 +87,50 @@ const { file } = Astro.props;
       <button type="submit">Access Content</button>
     </form>
 
-    <a class="back-link" href="/">
-      <svg
-        class="back-icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.6"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-        focusable="false"
+    <div class="back-nav">
+      <a
+        class="home-link"
+        href="https://metronshowrunners.com"
+        title="Metron Showrunners home"
+        aria-label="Metron Showrunners home"
       >
-        <path d="M9.5 6.5h11" />
-        <path d="M9.5 12h11" />
-        <path d="M9.5 17.5h11" />
-        <path d="M4 6.5h.01" />
-        <path d="M4 12h.01" />
-        <path d="M4 17.5h.01" />
-      </svg>
-      <span>All documents</span>
-    </a>
+        <svg
+          class="home-icon-lg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M3 11.5 12 4l9 7.5" />
+          <path d="M5.5 10v9a1 1 0 0 0 1 1h3v-6h5v6h3a1 1 0 0 0 1-1v-9" />
+        </svg>
+      </a>
+      <a class="back-link" href="/">
+        <svg
+          class="back-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          focusable="false"
+        >
+          <path d="M9.5 6.5h11" />
+          <path d="M9.5 12h11" />
+          <path d="M9.5 17.5h11" />
+          <path d="M4 6.5h.01" />
+          <path d="M4 12h.01" />
+          <path d="M4 17.5h.01" />
+        </svg>
+        <span>All documents</span>
+      </a>
+    </div>
 
     <p class="footnote">
       This material is confidential and shared by invitation only.

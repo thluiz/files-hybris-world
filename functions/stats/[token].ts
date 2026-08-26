@@ -11,7 +11,7 @@
  * This page lists the codes in plain text. If it leaks, everything leaks —
  * hence the noindex, the no-store, and the generic 404 response.
  */
-import { ACCESS_LEVELS, FILES, filesForLevel, levelSummary } from '../../shared/files';
+import { ACCESS_LEVELS, FILES, FILE_BY_SLUG, filesForLevel, levelSummary } from '../../shared/files';
 
 export interface Env {
   DB: D1Database;
@@ -134,6 +134,14 @@ interface FileGuestRow {
   last: string | null;
 }
 
+interface AccessEventRow {
+  code: string;
+  slug: string;
+  ts: string;
+  /** 1 = downloaded, 2 = blocked by level — same meaning as access_log.ok. */
+  ok: number;
+}
+
 export const onRequestGet: PagesFunction<Env> = async ({ params, request, env }) => {
   const token = String(params.token ?? '');
   const notFound = new Response('Not found', { status: 404 });
@@ -168,7 +176,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     return notFound;
   }
 
-  const [codes, byFile, fileGuests, invalid, denied] = await Promise.all([
+  const [codes, byFile, fileGuests, codeEvents, invalid, denied] = await Promise.all([
     env.DB.prepare(
       `SELECT c.label, c.code, c.level,
               COUNT(a.id)             AS downloads,
@@ -204,6 +212,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
        GROUP BY a.slug, a.code
        ORDER BY downloads DESC, label ASC`
     ).all<FileGuestRow>(),
+    // Every access a code has made, successful or blocked by level: powers
+    // the per-code accordion under "By access level" — not just how many
+    // times, but which file and whether it actually opened.
+    env.DB.prepare(
+      `SELECT code, slug, ts, ok FROM access_log
+       WHERE ok IN (1, 2) AND code IS NOT NULL
+       ORDER BY code, ts DESC`
+    ).all<AccessEventRow>(),
     env.DB.prepare(
       `SELECT COUNT(*) AS n FROM access_log WHERE ok = 0`
     ).first<{ n: number }>(),
@@ -218,6 +234,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   const used = rows.filter((r) => r.downloads > 0).length;
   const totalDownloads = rows.reduce((sum, r) => sum + r.downloads, 0);
   const blocked = rows.filter((r) => r.level <= 0).length;
+
+  // Per code, every access it made — already sorted most-recent-first by the
+  // query. Grouping here rather than a GROUP_CONCAT in SQL keeps file titles
+  // (which live in the catalog, not the database) out of the query.
+  const eventsByCode = new Map<string, AccessEventRow[]>();
+  for (const ev of codeEvents.results ?? []) {
+    const list = eventsByCode.get(ev.code);
+    if (list) list.push(ev);
+    else eventsByCode.set(ev.code, [ev]);
+  }
 
   // Sorted by the catalog, not by whatever the database returned: a file with
   // zero downloads still needs to show up as zero, not vanish from the list.
@@ -309,6 +335,17 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   .level.unknown .level-head b::after { content:' (out of range)'; font-size:.75rem;
                                         color:#8c2f22; font-weight:400; }
   .empty { margin:.6rem 0 0; font-size:.85rem; color:#8a7a63; font-style:italic; }
+  /* A code's own access history, nested one level inside its access-level
+     group — lighter weight than the outer headers so the nesting reads at a
+     glance, not just from indentation. */
+  .level.nested { margin:.6rem 0 0 1rem; }
+  .level.nested .level-head { border-bottom:1px solid rgba(26,18,10,.16);
+                              padding:.3rem .6rem; font-size:.85rem;
+                              background:rgba(255,255,255,.24); border-radius:2px; }
+  .level.nested .level-head:hover { background:rgba(255,255,255,.55); }
+  .level.nested .level-head b { font-size:.92rem; }
+  .level.nested .level-body { padding:.4rem 0 0 .6rem; }
+  tr.denied td { color:#8c2f22; }
   .toolbar { display:flex; gap:.75rem; margin:-.35rem 0 1rem; }
   .toolbar button { border:1px solid rgba(26,18,10,.22); background:rgba(255,255,255,.42);
                     color:var(--soft); font:inherit; font-size:.75rem; letter-spacing:.1em;
@@ -397,20 +434,45 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     ${
       g.codes.length === 0
         ? '<p class="empty">No codes at this level.</p>'
-        : `<div class="scroll"><table>
-      <tr><th>Guest</th><th>Code</th><th class="num">Downloads</th>
-          <th class="num">Files</th><th>Last access</th></tr>
-      ${g.codes
-        .map(
-          (r) => `<tr class="${r.downloads === 0 ? 'zero' : ''}">
-        <td>${esc(r.label)}</td>
-        <td><code>${esc(r.code.slice(0, 4))}-${esc(r.code.slice(4))}</code></td>
-        <td class="num">${r.downloads}</td>
-        <td class="num">${r.files}${scopeOf(g.level)}</td>
-        <td>${esc(shortDate(r.last))}</td></tr>`
-        )
-        .join('')}
-    </table></div>`
+        : g.codes
+            .map((r) => {
+              const events = eventsByCode.get(r.code) ?? [];
+              const denied = events.filter((e) => e.ok === 2).length;
+              return `<div class="level nested">
+      <button type="button" class="level-head" aria-expanded="true" aria-controls="code-${r.code}">
+        <span class="caret" aria-hidden="true">▾</span>
+        <b>${esc(r.label)}</b>
+        <code>${esc(r.code.slice(0, 4))}-${esc(r.code.slice(4))}</code>
+        <span class="count">${r.downloads} ${r.downloads === 1 ? 'download' : 'downloads'}${
+                denied > 0 ? ` · ${denied} blocked` : ''
+              } · ${r.files}${scopeOf(g.level)} files</span>
+      </button>
+      <div class="level-body" id="code-${r.code}">
+      ${
+        events.length === 0
+          ? '<p class="empty">No accesses yet.</p>'
+          : `<div class="scroll"><table>
+        <tr><th>File</th><th>When</th><th>Result</th></tr>
+        ${events
+          .map((ev) => {
+            const title = FILE_BY_SLUG[ev.slug]?.title ?? ev.slug;
+            const requires = FILE_BY_SLUG[ev.slug]?.level;
+            return `<tr class="${ev.ok === 2 ? 'denied' : ''}">
+          <td>${esc(title)}</td>
+          <td>${esc(shortDate(ev.ts))}</td>
+          <td>${
+            ev.ok === 1
+              ? 'Downloaded'
+              : `Blocked — needs level ${requires ?? '?'}`
+          }</td></tr>`;
+          })
+          .join('')}
+      </table></div>`
+      }
+      </div>
+    </div>`;
+            })
+            .join('')
     }
     </div>
   </div>`
@@ -439,8 +501,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 
     heads.forEach(function (head) {
       // Starts collapsed, except an entry with no one yet: there, what
-      // matters is precisely the "nobody here" line.
-      var empty = head.parentNode.querySelector('.empty') !== null;
+      // matters is precisely the "nobody here" line. Checked as a direct
+      // child of this head's own body — with nested accordions (a code's
+      // access list inside a level), the empty marker can also exist several
+      // levels down, inside an unrelated sibling that happens to have none.
+      var body = document.getElementById(head.getAttribute('aria-controls'));
+      var empty = body.children.length === 1 && body.children[0].className === 'empty';
       set(head, empty);
       head.addEventListener('click', function () {
         set(head, head.getAttribute('aria-expanded') !== 'true');

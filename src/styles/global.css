@@ -211,13 +211,13 @@ button:focus-visible {
   outline-offset: 3px;
 }
 
-/* Sits right before .title-icon in the h1; the source-order space between
-   the two anchors isn't enough on its own. */
+/* First thing in the h1, before the title (linked or not); the source-order
+   whitespace isn't enough on its own. */
 h1 .home-link {
   margin-right: 0.5rem;
 }
 
-.home-icon-sm {
+.home-icon {
   width: 0.6em;
   height: 0.6em;
   flex-shrink: 0;
@@ -225,26 +225,13 @@ h1 .home-link {
   transition: opacity 0.2s ease;
 }
 
-.home-link:hover .home-icon-sm {
-  opacity: 1;
-}
-
-.home-icon-lg {
-  width: 1.05em;
-  height: 1.05em;
-  flex-shrink: 0;
-  opacity: 0.75;
-  transition: opacity 0.2s ease;
-}
-
-.home-link:hover .home-icon-lg {
+.home-link:hover .home-icon {
   opacity: 1;
 }
 
 .back-nav {
   display: inline-flex;
   align-items: center;
-  gap: 0.85rem;
   margin-top: 1.75rem;
 }
 

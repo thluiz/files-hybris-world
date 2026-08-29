@@ -233,8 +233,9 @@ h1 .home-link {
    0.6em reads right. On the index it stands alone against the Cinzel caps
    and the same size looks undersized. */
 .home-icon-solo {
-  width: 0.85em;
-  height: 0.85em;
+  width: 1.15em;
+  height: 1.15em;
+  opacity: 0.7;
 }
 
 .back-nav {

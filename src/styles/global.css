@@ -229,6 +229,14 @@ h1 .home-link {
   opacity: 1;
 }
 
+/* On the document page the house is matched to the list icon beside it, so
+   0.6em reads right. On the index it stands alone against the Cinzel caps
+   and the same size looks undersized. */
+.home-icon-solo {
+  width: 0.85em;
+  height: 0.85em;
+}
+
 .back-nav {
   display: inline-flex;
   align-items: center;

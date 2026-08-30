@@ -1,28 +1,33 @@
 ---
-import Layout from '../../layouts/Layout.astro';
-import '../../styles/global.css';
-import { filesOf } from '../../../shared/files';
-import { DEFAULT_PROPERTY } from '../../../shared/properties';
+import Layout from '../../../layouts/Layout.astro';
+import '../../../styles/global.css';
+import { filesOf } from '../../../../shared/files';
+import { PROPERTIES } from '../../../../shared/properties';
 
+// One page per (property, file). The prefix never reaches the browser: the
+// middleware rewrites `/d/<slug>/` onto it based on the request host, and
+// 404s a slug that belongs to another property.
 export function getStaticPaths() {
-  return filesOf(DEFAULT_PROPERTY.slug).map((file) => ({
-    params: { slug: file.slug },
-    props: { file },
-  }));
+  return PROPERTIES.flatMap((property) =>
+    filesOf(property.slug).map((file) => ({
+      params: { property: property.slug, slug: file.slug },
+      props: { property, file },
+    }))
+  );
 }
 
-const { file } = Astro.props;
+const { property, file } = Astro.props;
 ---
-<Layout title={`${file.title} — Metron Showrunners`}>
+<Layout title={`${file.title} — ${property.brand}`} property={property}>
   <main class="card">
-    <p class="brand">Metron Showrunners</p>
+    <p class="brand">{property.brand}</p>
 
     <h1>
       <a
-        href="https://metronshowrunners.com"
+        href={property.homeUrl}
         class="home-link"
-        title="Metron Showrunners home"
-        aria-label="Metron Showrunners home"
+        title={`${property.brand} home`}
+        aria-label={`${property.brand} home`}
       >
         <svg
           class="home-icon"

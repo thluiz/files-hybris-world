@@ -18,6 +18,11 @@
   box-sizing: border-box;
 }
 
+/* The default palette (Hybris). Every rule below reads only these variables,
+ * so another property is one `[data-property='<slug>'] { … }` block — the
+ * attribute is set on <body> by Layout.astro. Keep `--cream` in sync with that
+ * property's `themeColor` in shared/properties.ts, which fills the
+ * <meta name="theme-color"> that colours the mobile browser chrome. */
 :root {
   --cream: #cabf9d;
   --cream-light: #ded5ba;

@@ -1,10 +1,11 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import '../../styles/global.css';
-import { FILES } from '../../../shared/files';
+import { filesOf } from '../../../shared/files';
+import { DEFAULT_PROPERTY } from '../../../shared/properties';
 
 export function getStaticPaths() {
-  return FILES.map((file) => ({
+  return filesOf(DEFAULT_PROPERTY.slug).map((file) => ({
     params: { slug: file.slug },
     props: { file },
   }));

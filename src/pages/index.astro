@@ -1,14 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import '../styles/global.css';
-import { FILES } from '../../shared/files';
+import { filesOf, shortTitle } from '../../shared/files';
+import { DEFAULT_PROPERTY } from '../../shared/properties';
 
 // Catalog titles already carry "Hybris —" in front; here that would be
 // repeated four times right under the page's own title.
-const items = FILES.map((f) => ({
-  ...f,
-  shortTitle: f.title.replace(/^Hybris\s*—\s*/, ''),
-}));
+const property = DEFAULT_PROPERTY;
+const items = filesOf(property.slug).map((f) => ({ ...f, shortTitle: shortTitle(f) }));
 ---
 <Layout title="Hybris Project — Metron Showrunners">
   <main class="card">

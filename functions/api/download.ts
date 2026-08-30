@@ -9,7 +9,8 @@
  * The R2 object is never exposed: there's no public URL, no signed redirect —
  * the file body streams through here.
  */
-import { FILE_BY_SLUG, canAccess } from '../../shared/files';
+import { canAccess, fileFor } from '../../shared/files';
+import { DEFAULT_PROPERTY } from '../../shared/properties';
 
 export interface Env {
   /** Private R2 bucket holding the files */
@@ -70,7 +71,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const slug = String(form.get('slug') ?? '');
   const code = normalizeCode(String(form.get('code') ?? ''));
 
-  const file = FILE_BY_SLUG[slug];
+  const file = fileFor(DEFAULT_PROPERTY.slug, slug);
   if (!file) {
     return new Response('Not found', { status: 404 });
   }

@@ -10,7 +10,7 @@
  * the file body streams through here.
  */
 import { canAccess, fileFor } from '../../shared/files';
-import { DEFAULT_PROPERTY } from '../../shared/properties';
+import type { MiddlewareData } from '../_middleware';
 
 export interface Env {
   /** Private R2 bucket holding the files */
@@ -60,18 +60,35 @@ function contentDisposition(filename: string): string {
 }
 
 function backToForm(request: Request, slug: string, reason: string): Response {
-  const url = new URL(`/d/${slug}`, request.url);
+  // Trailing slash on purpose: the page is `/d/<slug>/`, and without it the
+  // browser takes an extra 308 hop on the way back.
+  const url = new URL(`/d/${slug}/`, request.url);
   url.searchParams.set('erro', reason);
   // 303 forces the browser to swap the POST for a GET on the way back.
   return Response.redirect(url.toString(), 303);
 }
 
-export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
+export const onRequestPost: PagesFunction<Env, string, MiddlewareData> = async ({
+  request,
+  env,
+  data,
+}) => {
+  // Resolved once, from the host, in functions/_middleware.ts. Missing is a
+  // 404 and never a fallback: guessing the property is how one IP's code ends
+  // up opening another's file.
+  const property = data?.property;
+  if (!property) {
+    return new Response('Not found', { status: 404 });
+  }
+
   const form = await request.formData();
   const slug = String(form.get('slug') ?? '');
   const code = normalizeCode(String(form.get('code') ?? ''));
 
-  const file = fileFor(DEFAULT_PROPERTY.slug, slug);
+  // Before any trip to the database: a slug from another property dies at the
+  // router, with no timing or log signal separating "exists elsewhere" from
+  // "doesn't exist".
+  const file = fileFor(property.slug, slug);
   if (!file) {
     return new Response('Not found', { status: 404 });
   }
@@ -84,15 +101,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const logAccess = (ok: number, label: string | null) =>
     env.DB.prepare(
-      `INSERT INTO access_log (code, label, slug, ok, ts, country, ip_hash, ua)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO access_log (code, label, slug, ok, ts, country, ip_hash, ua, property)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(code || null, label, slug, ok, now, country, ipHash, ua)
+      .bind(code || null, label, slug, ok, now, country, ipHash, ua, property.slug)
       .run();
 
   // Brute-force throttle: 100 valid codes in a small space would be swept
   // fast without this. `ts` is ISO 8601 UTC, so comparing as text is
   // equivalent to comparing as a date.
+  //
+  // Deliberately GLOBAL, not per property: whoever is sweeping the code space
+  // must not get a fresh budget of ten by switching hosts. The cost is that
+  // someone holding two codes who pastes the wrong one burns one of theirs.
   const since = new Date(Date.now() - WINDOW_MINUTES * 60_000).toISOString();
   const failed = await env.DB.prepare(
     `SELECT COUNT(*) AS n FROM access_log WHERE ip_hash = ? AND ok = 0 AND ts > ?`
@@ -104,9 +125,14 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return backToForm(request, slug, 'rate');
   }
 
+  // The property is part of the lookup, so a real code from another property
+  // finds no row — and lands in exactly the same branch as a code that never
+  // existed. Unknown, blocked and foreign are one indistinguishable answer.
   const row = code
-    ? await env.DB.prepare(`SELECT label, level FROM codes WHERE code = ?`)
-        .bind(code)
+    ? await env.DB.prepare(
+        `SELECT label, level FROM codes WHERE code = ? AND property = ?`
+      )
+        .bind(code, property.slug)
         .first<{ label: string; level: number }>()
     : null;
 

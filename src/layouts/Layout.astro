@@ -1,8 +1,11 @@
 ---
+import type { Property } from '../../shared/properties';
+
 interface Props {
   title: string;
+  property: Property;
 }
-const { title } = Astro.props;
+const { title, property } = Astro.props;
 ---
 <!doctype html>
 <html lang="en">
@@ -11,20 +14,20 @@ const { title } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- Restricted material: nothing here should show up in search engines. -->
     <meta name="robots" content="noindex, nofollow" />
-    <meta name="theme-color" content="#cabf9d" />
+    <meta name="theme-color" content={property.themeColor} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
   </head>
-  <body>
+  <!-- The palette comes from the property's block in global.css. -->
+  <body data-property={property.slug}>
     <slot />
     <footer class="ip-notice">
       <p class="ip-notice-title">Intellectual Property Notice</p>
       <p>
-        All content on this page is private intellectual property of Metron
-        Showrunners and its respective rights holders. Any reproduction,
-        modification, sharing, distribution, or use, in whole or in part, is
-        prohibited without the prior express written authorization of Metron
-        Showrunners.
+        All content on this page is private intellectual property of {property.brand}
+        and its respective rights holders. Any reproduction, modification,
+        sharing, distribution, or use, in whole or in part, is prohibited
+        without the prior express written authorization of {property.brand}.
       </p>
       <p>All rights reserved.</p>
     </footer>

@@ -1,24 +1,34 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import '../styles/global.css';
-import { filesOf, shortTitle } from '../../shared/files';
-import { DEFAULT_PROPERTY } from '../../shared/properties';
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/global.css';
+import { filesOf, shortTitle } from '../../../shared/files';
+import { PROPERTIES } from '../../../shared/properties';
 
-// Catalog titles already carry "Hybris —" in front; here that would be
-// repeated four times right under the page's own title.
-const property = DEFAULT_PROPERTY;
+// One tree per property. The prefix never reaches the browser: the middleware
+// rewrites `/` onto it based on the request host.
+export function getStaticPaths() {
+  return PROPERTIES.map((property) => ({
+    params: { property: property.slug },
+    props: { property },
+  }));
+}
+
+const { property } = Astro.props;
+
+// Catalog titles already carry the property name in front; here that would be
+// repeated once per document right under the page's own title.
 const items = filesOf(property.slug).map((f) => ({ ...f, shortTitle: shortTitle(f) }));
 ---
-<Layout title="Hybris Project — Metron Showrunners">
+<Layout title={`${property.displayName} — ${property.brand}`} property={property}>
   <main class="card">
-    <p class="brand">Metron Showrunners</p>
+    <p class="brand">{property.brand}</p>
 
     <h1>
       <a
-        href="https://metronshowrunners.com"
+        href={property.homeUrl}
         class="home-link"
-        title="Metron Showrunners home"
-        aria-label="Metron Showrunners home"
+        title={`${property.brand} home`}
+        aria-label={`${property.brand} home`}
       >
         <svg
           class="home-icon"
@@ -35,17 +45,15 @@ const items = filesOf(property.slug).map((f) => ({ ...f, shortTitle: shortTitle(
           <path d="M5.5 10v9a1 1 0 0 0 1 1h3v-6h5v6h3a1 1 0 0 0 1-1v-9" />
         </svg>
       </a>
-      Hybris Project
+      {property.displayName}
     </h1>
     <hr class="rule" />
-    <p class="description">
-      An Ancient Conflict, Reimagined. Select a document to continue.
-    </p>
+    <p class="description">{property.tagline}</p>
 
     <ul class="materials">
       {items.map((f) => (
         <li>
-          <a href={`/d/${f.slug}`}>
+          <a href={`/d/${f.slug}/`}>
             <span class="material-title">{f.shortTitle}</span>
             <span class="material-desc">{f.description}</span>
           </a>

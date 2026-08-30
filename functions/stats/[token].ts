@@ -11,7 +11,8 @@
  * This page lists the codes in plain text. If it leaks, everything leaks —
  * hence the noindex, the no-store, and the generic 404 response.
  */
-import { ACCESS_LEVELS, FILES, FILE_BY_SLUG, filesForLevel, levelSummary } from '../../shared/files';
+import { ACCESS_LEVELS, fileFor, filesForLevel, filesOf, levelSummary } from '../../shared/files';
+import { DEFAULT_PROPERTY } from '../../shared/properties';
 
 export interface Env {
   DB: D1Database;
@@ -71,8 +72,8 @@ function esc(value: unknown): string {
  * downloaded before being blocked, and dividing by zero files wouldn't say
  * anything.
  */
-function scopeOf(level: number): string {
-  const n = filesForLevel(level).length;
+function scopeOf(property: string, level: number): string {
+  const n = filesForLevel(property, level).length;
   return n > 0 ? `/${n}` : '';
 }
 
@@ -260,7 +261,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 
   // Sorted by the catalog, not by whatever the database returned: a file with
   // zero downloads still needs to show up as zero, not vanish from the list.
-  const fileStats = FILES.map((f) => {
+  const fileStats = filesOf(DEFAULT_PROPERTY.slug).map((f) => {
     const hit = (byFile.results ?? []).find((b) => b.slug === f.slug);
     return {
       slug: f.slug,
@@ -282,7 +283,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   const groups = [...ACCESS_LEVELS, ...extras].map((level) => ({
     level,
     known: known.has(level),
-    abre: levelSummary(level),
+    abre: levelSummary(DEFAULT_PROPERTY.slug, level),
     codes: rows.filter((r) => r.level === level),
   }));
 
@@ -458,7 +459,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         <code>${esc(r.code.slice(0, 4))}-${esc(r.code.slice(4))}</code>
         <span class="count">${r.downloads} ${r.downloads === 1 ? 'download' : 'downloads'}${
                 denied > 0 ? ` · ${denied} blocked` : ''
-              } · ${r.files}${scopeOf(g.level)} files</span>
+              } · ${r.files}${scopeOf(DEFAULT_PROPERTY.slug, g.level)} files</span>
       </button>
       <div class="level-body" id="code-${r.code}">
       ${
@@ -468,8 +469,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         <tr><th>File</th><th>When</th><th>Result</th></tr>
         ${events
           .map((ev) => {
-            const title = FILE_BY_SLUG[ev.slug]?.title ?? ev.slug;
-            const requires = FILE_BY_SLUG[ev.slug]?.level;
+            const entry = fileFor(DEFAULT_PROPERTY.slug, ev.slug);
+            const title = entry?.title ?? ev.slug;
+            const requires = entry?.level;
             return `<tr class="${ev.ok === 2 ? 'denied' : ''}">
           <td>${esc(title)}</td>
           <td>${timeTag(ev.ts)}</td>

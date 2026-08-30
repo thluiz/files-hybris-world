@@ -12,7 +12,7 @@
  * hence the noindex, the no-store, and the generic 404 response.
  */
 import { ACCESS_LEVELS, fileFor, filesForLevel, filesOf, levelSummary } from '../../shared/files';
-import { DEFAULT_PROPERTY } from '../../shared/properties';
+import { PROPERTIES } from '../../shared/properties';
 
 export interface Env {
   DB: D1Database;
@@ -127,18 +127,22 @@ interface CodeRow {
   label: string;
   code: string;
   level: number;
+  property: string;
   downloads: number;
   files: number;
   last: string | null;
 }
 
 interface FileRow {
+  /** Null only for rows logged before properties existed. */
+  property: string | null;
   slug: string;
   downloads: number;
   people: number;
 }
 
 interface FileGuestRow {
+  property: string | null;
   slug: string;
   label: string;
   code: string;
@@ -150,6 +154,7 @@ interface FileGuestRow {
 
 interface AccessEventRow {
   code: string;
+  property: string | null;
   slug: string;
   ts: string;
   /** 1 = downloaded, 2 = blocked by level — same meaning as access_log.ok. */
@@ -192,7 +197,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 
   const [codes, byFile, fileGuests, codeEvents, invalid, denied] = await Promise.all([
     env.DB.prepare(
-      `SELECT c.label, c.code, c.level,
+      `SELECT c.label, c.code, c.level, c.property,
               COUNT(a.id)             AS downloads,
               COUNT(DISTINCT a.slug)  AS files,
               MAX(a.ts)               AS last
@@ -201,10 +206,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
        GROUP BY c.code
        ORDER BY downloads DESC, c.label ASC`
     ).all<CodeRow>(),
+    // GROUP BY property first: two properties with a `one-pager` each would
+    // otherwise be summed into one line.
     env.DB.prepare(
-      `SELECT slug, COUNT(*) AS downloads, COUNT(DISTINCT code) AS people
+      `SELECT property, slug, COUNT(*) AS downloads, COUNT(DISTINCT code) AS people
        FROM access_log WHERE ok = 1
-       GROUP BY slug`
+       GROUP BY property, slug`
     ).all<FileRow>(),
     // Who, per file: powers the accordion under "By file". Grouped by
     // (slug, code) rather than by access_log row — a guest who downloaded the
@@ -216,21 +223,22 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     // otherwise vanish from the guest list while still counting toward the
     // header's total — a download the accordion can't explain.
     env.DB.prepare(
-      `SELECT a.slug AS slug, COALESCE(c.label, a.code) AS label, a.code AS code,
+      `SELECT a.property AS property, a.slug AS slug,
+              COALESCE(c.label, a.code) AS label, a.code AS code,
               c.level AS level,
               COUNT(*)   AS downloads,
               MAX(a.ts)  AS last
        FROM access_log a
        LEFT JOIN codes c ON c.code = a.code
        WHERE a.ok = 1
-       GROUP BY a.slug, a.code
+       GROUP BY a.property, a.slug, a.code
        ORDER BY downloads DESC, label ASC`
     ).all<FileGuestRow>(),
     // Every access a code has made, successful or blocked by level: powers
     // the per-code accordion under "By access level" — not just how many
     // times, but which file and whether it actually opened.
     env.DB.prepare(
-      `SELECT code, slug, ts, ok FROM access_log
+      `SELECT code, property, slug, ts, ok FROM access_log
        WHERE ok IN (1, 2) AND code IS NOT NULL
        ORDER BY code, ts DESC`
     ).all<AccessEventRow>(),
@@ -261,31 +269,49 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 
   // Sorted by the catalog, not by whatever the database returned: a file with
   // zero downloads still needs to show up as zero, not vanish from the list.
-  const fileStats = filesOf(DEFAULT_PROPERTY.slug).map((f) => {
-    const hit = (byFile.results ?? []).find((b) => b.slug === f.slug);
-    return {
-      slug: f.slug,
-      title: f.title,
-      level: f.level,
-      downloads: hit?.downloads ?? 0,
-      people: hit?.people ?? 0,
-      guests: (fileGuests.results ?? []).filter((g) => g.slug === f.slug),
-    };
-  });
+  // Matched on (property, slug), never on slug alone: the same slug can exist
+  // in two catalogs and mean two different documents.
+  const fileStats = PROPERTIES.flatMap((p) =>
+    filesOf(p.slug).map((f) => {
+      const hit = (byFile.results ?? []).find(
+        (b) => b.property === f.property && b.slug === f.slug
+      );
+      return {
+        property: f.property,
+        slug: f.slug,
+        title: f.title,
+        level: f.level,
+        downloads: hit?.downloads ?? 0,
+        people: hit?.people ?? 0,
+        guests: (fileGuests.results ?? []).filter(
+          (g) => g.property === f.property && g.slug === f.slug
+        ),
+      };
+    })
+  );
 
-  // One group per catalog level, in ladder order. A code with a level outside
+  // One group per catalog level, in ladder order, per property — the same
+  // level number opens different documents in different catalogs, so the
+  // "opens …" caption is only true within one. A code with a level outside
   // the list (typed by hand in an UPDATE) can't just disappear from the panel
   // — it gets its own group, at the end, where it stands out.
   const known = new Set<number>(ACCESS_LEVELS);
-  const extras = [...new Set(rows.map((r) => r.level).filter((l) => !known.has(l)))].sort(
-    (a, b) => a - b
-  );
-  const groups = [...ACCESS_LEVELS, ...extras].map((level) => ({
-    level,
-    known: known.has(level),
-    abre: levelSummary(DEFAULT_PROPERTY.slug, level),
-    codes: rows.filter((r) => r.level === level),
-  }));
+  const propertyGroups = PROPERTIES.map((p) => {
+    const mine = rows.filter((r) => r.property === p.slug);
+    const extras = [...new Set(mine.map((r) => r.level).filter((l) => !known.has(l)))].sort(
+      (a, b) => a - b
+    );
+    return {
+      property: p,
+      groups: [...ACCESS_LEVELS, ...extras].map((level) => ({
+        property: p.slug,
+        level,
+        known: known.has(level),
+        abre: levelSummary(p.slug, level),
+        codes: mine.filter((r) => r.level === level),
+      })),
+    };
+  });
 
   const html = `<!doctype html>
 <html lang="en">
@@ -293,8 +319,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
-<title>Access — Hybris</title>
+<title>Access — Metron Showrunners</title>
 <style>
+  /* A deliberate standalone copy of the palette: this page is served by the
+     Function, not by Astro, so it can't import global.css. One theme only —
+     do NOT add per-property variants here. Colouring an internal report by
+     section makes it harder to read, not easier; the headings label it. */
   :root { --cream:#cabf9d; --ink:#1a120a; --soft:#4a3d2c; --gold:#a8873f; }
   * { box-sizing:border-box; }
   body { margin:0; padding:2rem 1.25rem; background:#cabf9d; color:var(--ink);
@@ -339,6 +369,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   .level-head:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
   .level-head b { font-size:1.05rem; }
   .level-head .abre { color:var(--soft); font-size:.85rem; font-style:italic; }
+  /* Only rendered when more than one property is configured. */
+  .property-head { font-size:.95rem; letter-spacing:.1em; text-transform:uppercase;
+                   color:var(--gold); margin:1.75rem 0 .5rem; font-weight:400; }
   .level-head .count { margin-left:auto; font-size:.75rem; letter-spacing:.1em;
                        text-transform:uppercase; color:var(--soft); }
   .caret { display:inline-block; width:.75rem; color:var(--soft);
@@ -376,7 +409,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     <b>Do not share the URL</b> — not as a screenshot, not as a link, not pasted into a conversation.
   </p>
 
-  <h1>Access to Hybris materials</h1>
+  <h1>Access to Metron Showrunners materials</h1>
   <p class="sub">Updated at ${timeTag(new Date().toISOString())}</p>
 
   <div class="cards">
@@ -397,13 +430,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
   ${fileStats
     .map(
       (f) => `<div class="file">
-    <button type="button" class="level-head" aria-expanded="true" aria-controls="file-${f.slug}">
+    <button type="button" class="level-head" aria-expanded="true" aria-controls="file-${f.property}-${f.slug}">
       <span class="caret" aria-hidden="true">▾</span>
       <b>${esc(f.title)}</b>
       <span class="abre">level ${f.level}</span>
       <span class="count">${f.downloads} ${f.downloads === 1 ? 'download' : 'downloads'} · ${f.people} ${f.people === 1 ? 'guest' : 'guests'}</span>
     </button>
-    <div class="level-body" id="file-${f.slug}">
+    <div class="level-body" id="file-${f.property}-${f.slug}">
     ${
       f.guests.length === 0
         ? '<p class="empty">No one has downloaded this file yet.</p>'
@@ -434,17 +467,22 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     <button type="button" data-all="close">Collapse all</button>
   </div>
   <div id="levels-group">
-  ${groups
+  ${propertyGroups
+    .map(
+      (pg) => `${PROPERTIES.length > 1 ? `<h3 class="property-head">${esc(pg.property.displayName)}</h3>` : ''}
+  ${pg.groups
+    // Empty ladders are hidden per property: a property that only publishes
+    // two documents shouldn't show three empty levels.
     .filter((g) => g.codes.length > 0 || (g.known && g.level > 0))
     .map(
       (g) => `<div class="level${g.level <= 0 ? ' blocked' : ''}${g.known ? '' : ' unknown'}">
-    <button type="button" class="level-head" aria-expanded="true" aria-controls="nivel-${g.level}">
+    <button type="button" class="level-head" aria-expanded="true" aria-controls="nivel-${g.property}-${g.level}">
       <span class="caret" aria-hidden="true">▾</span>
       <b>Level ${g.level}</b>
       <span class="abre">${g.level <= 0 ? 'opens nothing' : `opens ${esc(g.abre)}`}</span>
       <span class="count">${g.codes.length} ${g.codes.length === 1 ? 'code' : 'codes'}</span>
     </button>
-    <div class="level-body" id="nivel-${g.level}">
+    <div class="level-body" id="nivel-${g.property}-${g.level}">
     ${
       g.codes.length === 0
         ? '<p class="empty">No codes at this level.</p>'
@@ -459,7 +497,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         <code>${esc(r.code.slice(0, 4))}-${esc(r.code.slice(4))}</code>
         <span class="count">${r.downloads} ${r.downloads === 1 ? 'download' : 'downloads'}${
                 denied > 0 ? ` · ${denied} blocked` : ''
-              } · ${r.files}${scopeOf(DEFAULT_PROPERTY.slug, g.level)} files</span>
+              } · ${r.files}${scopeOf(g.property, g.level)} files</span>
       </button>
       <div class="level-body" id="code-${r.code}">
       ${
@@ -469,7 +507,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
         <tr><th>File</th><th>When</th><th>Result</th></tr>
         ${events
           .map((ev) => {
-            const entry = fileFor(DEFAULT_PROPERTY.slug, ev.slug);
+            const entry = ev.property ? fileFor(ev.property, ev.slug) : undefined;
             const title = entry?.title ?? ev.slug;
             const requires = entry?.level;
             return `<tr class="${ev.ok === 2 ? 'denied' : ''}">
@@ -491,6 +529,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ params, request, env })
     }
     </div>
   </div>`
+    )
+    .join('')}`
     )
     .join('')}
   </div>

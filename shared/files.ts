@@ -93,6 +93,16 @@ export const FILES: FileEntry[] = [
     downloadName: 'Hybris-Season-One-Full-Script.pdf',
     contentType: 'application/pdf',
   },
+  {
+    property: 'ned',
+    slug: 'script',
+    title: 'Not Even Death — Script',
+    description: 'The one-minute film, on the page.',
+    level: 10,
+    r2Key: 'ned/01-script.pdf',
+    downloadName: 'Not-Even-Death-Script.pdf',
+    contentType: 'application/pdf',
+  },
 ];
 
 const FILE_BY_KEY: Record<string, FileEntry> = Object.fromEntries(

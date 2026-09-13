@@ -47,6 +47,32 @@
   --rule: rgba(26, 18, 10, 0.15);
 }
 
+/* Not Even Death. Sampled from the key art (not-even-death-keyart.jpg): the
+ * ground is the rain-night ambient, --ink the distressed title lettering,
+ * --ink-soft the tagline, --gold the METRON wordmark on the footer bar — the
+ * one colour the two properties share. The art has no cream in it.
+ *
+ * --error is NOT the default #8c2f22: on this ground it measures 2.22:1, and
+ * the invalid-code message is exactly the line that has to be readable. */
+[data-property='ned'] {
+  --cream: #11151a;
+  --cream-light: #1b222a;
+  --ink: #d7d2c8;
+  --ink-soft: #a8a196;
+  --gold: #d9c794;
+  --error: #d4685a;
+  /* A wash of light on the night, not a white card punched into it. */
+  --field: rgba(255, 255, 255, 0.05);
+  --field-focus: rgba(255, 255, 255, 0.1);
+  --field-border: rgba(215, 210, 200, 0.3);
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --surface-border: rgba(215, 210, 200, 0.25);
+  --error-bg: rgba(212, 104, 90, 0.12);
+  --error-border: rgba(212, 104, 90, 0.4);
+  --rule: rgba(215, 210, 200, 0.18);
+}
+
 body {
   margin: 0;
   min-height: 100vh;

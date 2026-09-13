@@ -41,6 +41,17 @@ export const PROPERTIES: Property[] = [
     r2Prefix: 'hybris/',
     themeColor: '#cabf9d',
   },
+  {
+    slug: 'ned',
+    hosts: ['files-ned.metronshowrunners.com'],
+    brand: 'Metron Showrunners',
+    displayName: 'Not Even Death',
+    tagline: 'Select a document to continue.',
+    titlePrefix: 'Not Even Death',
+    homeUrl: 'https://metronshowrunners.com',
+    r2Prefix: 'ned/',
+    themeColor: '#11151a',
+  },
 ];
 
 /** Only used on hosts that have no custom domain — see `isDevHost`. */

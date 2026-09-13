@@ -93,14 +93,27 @@ export const FILES: FileEntry[] = [
     downloadName: 'Hybris-Season-One-Full-Script.pdf',
     contentType: 'application/pdf',
   },
+  // Os dois no nivel 10, de propósito: um código do NED abre ambos. Separar
+  // por idioma numa escada de níveis seria dizer que uma das versões é mais
+  // reservada que a outra, o que não é o caso.
   {
     property: 'ned',
-    slug: 'script',
-    title: 'Not Even Death — Script',
-    description: 'The one-minute film, on the page.',
+    slug: 'full-script-en',
+    title: 'Full Script — English Version',
+    description: 'Complete screenplay for the one-minute film.',
     level: 10,
-    r2Key: 'ned/01-script.pdf',
-    downloadName: 'Not-Even-Death-Script.pdf',
+    r2Key: 'ned/01-full-script-en.pdf',
+    downloadName: 'Not-Even-Death-Full-Script-EN.pdf',
+    contentType: 'application/pdf',
+  },
+  {
+    property: 'ned',
+    slug: 'full-script-pt',
+    title: 'Full Script — Portuguese Version',
+    description: 'Complete screenplay for the one-minute film.',
+    level: 10,
+    r2Key: 'ned/02-full-script-pt.pdf',
+    downloadName: 'Not-Even-Death-Full-Script-PT.pdf',
     contentType: 'application/pdf',
   },
 ];

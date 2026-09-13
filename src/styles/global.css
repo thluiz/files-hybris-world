@@ -30,6 +30,21 @@
   --ink-soft: #4a3d2c;
   --gold: #a8873f;
   --error: #8c2f22;
+  /* The code field. These were literals inside `input[name='code']`, which
+   * quietly broke the promise above: on a dark property the hand-written
+   * white made the typed code 1.16:1 against its own background. */
+  --field: rgba(255, 255, 255, 0.5);
+  --field-focus: rgba(255, 255, 255, 0.75);
+  --field-border: rgba(26, 18, 10, 0.28);
+  /* Document cards, error box and the footer hairline. Same story as --field:
+   * these were literals, and a literal is a colour that cannot follow the
+   * property. Kept at the exact values Hybris already shipped. */
+  --surface: rgba(255, 255, 255, 0.42);
+  --surface-hover: rgba(255, 255, 255, 0.72);
+  --surface-border: rgba(26, 18, 10, 0.22);
+  --error-bg: rgba(140, 47, 34, 0.09);
+  --error-border: rgba(140, 47, 34, 0.3);
+  --rule: rgba(26, 18, 10, 0.15);
 }
 
 body {
@@ -106,15 +121,15 @@ input[name='code'] {
   text-align: center;
   text-transform: uppercase;
   color: var(--ink);
-  background-color: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(26, 18, 10, 0.28);
+  background-color: var(--field);
+  border: 1px solid var(--field-border);
   border-radius: 2px;
 }
 
 input[name='code']:focus {
   outline: 2px solid var(--gold);
   outline-offset: 2px;
-  background-color: rgba(255, 255, 255, 0.75);
+  background-color: var(--field-focus);
 }
 
 button {
@@ -147,8 +162,8 @@ button:focus-visible {
   padding: 0.7rem 1rem;
   font-size: 0.92rem;
   color: var(--error);
-  background-color: rgba(140, 47, 34, 0.09);
-  border: 1px solid rgba(140, 47, 34, 0.3);
+  background-color: var(--error-bg);
+  border: 1px solid var(--error-border);
   border-radius: 2px;
 }
 
@@ -297,14 +312,14 @@ button:focus-visible {
   padding: 0.9rem 1.1rem;
   color: var(--ink);
   text-decoration: none;
-  background-color: rgba(255, 255, 255, 0.42);
-  border: 1px solid rgba(26, 18, 10, 0.22);
+  background-color: var(--surface);
+  border: 1px solid var(--surface-border);
   border-radius: 2px;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .materials a:hover {
-  background-color: rgba(255, 255, 255, 0.72);
+  background-color: var(--surface-hover);
   border-color: var(--gold);
 }
 
@@ -332,7 +347,7 @@ button:focus-visible {
   max-width: 30rem;
   margin-top: 3rem;
   padding-top: 1.25rem;
-  border-top: 1px solid rgba(26, 18, 10, 0.15);
+  border-top: 1px solid var(--rule);
   font-size: 0.7rem;
   line-height: 1.5;
   color: var(--ink-soft);

@@ -36,7 +36,7 @@ They serve the whole slate now. Do not rename them: renaming the Pages project
 drops the custom domain and the workflow's `--project-name`, and renaming the
 D1 changes its id.
 
-Each file has a **level** (10, 20, 30, 40, in order of material exposure)
+Each file has a **level** (10, 20, 30, 40, 50, in order of material exposure)
 and each code carries its own: it opens any file at an equal or lower level.
 Level 0 opens nothing — that's how you block a code without deleting it.
 The rule lives in `canAccess()`, in `shared/files.ts`, and must not be

@@ -47,6 +47,7 @@ Functions.
 | hybris | 20 | `pitch-deck` | Hybris — Pitch Deck |
 | hybris | 30 | `series-bible` | Hybris — Series Bible |
 | hybris | 40 | `season-one-script` | Hybris — Season One Full Script |
+| hybris | 50 | `pilot-production-breakdown` | Hybris — Pilot Production Breakdown |
 
 ## Access levels
 
@@ -61,7 +62,8 @@ no one.
 | 10 | One-Pager |
 | 20 | One-Pager, Pitch Deck |
 | 30 | One-Pager, Pitch Deck, Series Bible |
-| 40 | all four |
+| 40 | One-Pager, Pitch Deck, Series Bible, Season One Full Script |
+| 50 | all five, including the Pilot Production Breakdown |
 
 Level 0 replaced the `active` column: blocking a code means zeroing its
 level. The code stays in the table, and its history in `access_log` keeps

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS codes (
                                         -- is why a code from another property
                                         -- simply finds no row.
   label      TEXT NOT NULL,             -- who the code was handed to
-  level      INTEGER NOT NULL DEFAULT 0,-- 0,10,20,30,40 — unlocks every file at
+  level      INTEGER NOT NULL DEFAULT 0,-- 0,10,…,50 — unlocks every file at
                                         -- that level or below. The default is 0
                                         -- (unlocks nothing) on purpose: an
                                         -- INSERT that forgets the column fails

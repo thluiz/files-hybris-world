@@ -49,7 +49,7 @@ export interface FileEntry {
  * The ladder is shared by every property. A property that only publishes two
  * documents simply has nothing at the upper levels.
  */
-export const ACCESS_LEVELS = [0, 10, 20, 30, 40] as const;
+export const ACCESS_LEVELS = [0, 10, 20, 30, 40, 50] as const;
 export const LEVEL_BLOCKED = 0;
 
 export const FILES: FileEntry[] = [
@@ -91,6 +91,16 @@ export const FILES: FileEntry[] = [
     level: 40,
     r2Key: 'hybris/04-season-one-full-script.pdf',
     downloadName: 'Hybris-Season-One-Full-Script.pdf',
+    contentType: 'application/pdf',
+  },
+  {
+    property: 'hybris',
+    slug: 'pilot-production-breakdown',
+    title: 'Hybris — Pilot Production Breakdown',
+    description: 'Filming plan, technical breakdown and AI/VFX strategy.',
+    level: 50,
+    r2Key: 'hybris/05-pilot-production-breakdown.pdf',
+    downloadName: 'Hybris-Pilot-Production-Breakdown.pdf',
     contentType: 'application/pdf',
   },
   // Os dois no nivel 10, de propósito: um código do NED abre ambos. Separar

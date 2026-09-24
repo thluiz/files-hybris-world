@@ -48,7 +48,7 @@ const CODE_LENGTH = 8;
 // was already a sync liability — one per property would be a guarantee of
 // drift. The CSV carries the level number; the panel at /stats/<token>
 // renders the readable version, from the real catalog.
-const LEVELS = [0, 10, 20, 30, 40];
+const LEVELS = [0, 10, 20, 30, 40, 50];
 const DEFAULT_LEVEL = 10;
 
 function makeCode() {

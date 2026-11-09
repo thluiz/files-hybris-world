@@ -3,7 +3,7 @@
  * page tree behind the clean public URLs.
  *
  * One deployment serves the whole slate. The build emits one tree per
- * property (dist/hybris/…, dist/ned/…) because a static build can't emit two
+ * property (dist/hybris/…, dist/ned/…, dist/laya/…) because a static build can't emit two
  * different /index.html; this middleware maps the request host onto the right
  * tree, so the public URLs stay `/` and `/d/<slug>` on every domain.
  *

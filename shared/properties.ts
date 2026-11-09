@@ -52,6 +52,17 @@ export const PROPERTIES: Property[] = [
     r2Prefix: 'ned/',
     themeColor: '#11151a',
   },
+  {
+    slug: 'laya',
+    hosts: ['files-laya.metronshowrunners.com'],
+    brand: 'Metron Showrunners',
+    displayName: 'Laya',
+    tagline: 'A visual exploration of Laya’s dark world. Select a document to continue.',
+    titlePrefix: '',
+    homeUrl: 'https://metronshowrunners.com',
+    r2Prefix: 'laya/',
+    themeColor: '#151213',
+  },
 ];
 
 /** Only used on hosts that have no custom domain — see `isDevHost`. */

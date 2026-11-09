@@ -73,6 +73,32 @@
   --rule: rgba(215, 210, 200, 0.18);
 }
 
+/* Laya. Sampled from page 1 of the pitch deck (the key art): the ground is the
+ * dress and the rampart in the lower corners, a warm near-black rather than
+ * NED's blue one; --ink is the silver of the title lettering, --ink-soft the
+ * credit line, --gold the embroidery on the cloak. A first proposal, meant to
+ * be adjusted once the art is final.
+ *
+ * Contrast against --cream: ink 12.3:1, ink-soft 6.9:1, gold 8.5:1, and
+ * --error 6.0:1 (the Hybris #8c2f22 would not read on this ground). */
+[data-property='laya'] {
+  --cream: #151213;
+  --cream-light: #231e1f;
+  --ink: #d6d1c9;
+  --ink-soft: #a49d94;
+  --gold: #c9ab70;
+  --error: #d9776a;
+  --field: rgba(255, 255, 255, 0.05);
+  --field-focus: rgba(255, 255, 255, 0.1);
+  --field-border: rgba(214, 209, 201, 0.3);
+  --surface: rgba(255, 255, 255, 0.05);
+  --surface-hover: rgba(255, 255, 255, 0.09);
+  --surface-border: rgba(214, 209, 201, 0.25);
+  --error-bg: rgba(217, 119, 106, 0.12);
+  --error-border: rgba(217, 119, 106, 0.4);
+  --rule: rgba(214, 209, 201, 0.18);
+}
+
 body {
   margin: 0;
   min-height: 100vh;

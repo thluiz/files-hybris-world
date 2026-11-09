@@ -234,9 +234,10 @@ bust: the response is already `no-store`.
    its own is now a legitimate build directory name — match the object-key
    shape instead.)
    ```bash
-   grep -rniE 'r2key|\.pdf|(hybris|ned)/[0-9]' dist/                # must be empty
-   grep -rniE 'href="/(hybris|ned)/|action="/(hybris|ned)/' dist/   # must be empty
-   grep -rli 'not even death' dist/hybris/                          # must be empty
+   grep -rniE 'r2key|\.pdf|(hybris|ned|laya)/[0-9]' dist/                  # must be empty
+   grep -rniE 'href="/(hybris|ned|laya)/|action="/(hybris|ned|laya)/' dist/   # must be empty
+   grep -rli 'not even death' dist/hybris/ dist/laya/                      # must be empty
+   grep -rli 'laya' dist/hybris/ dist/ned/                                 # must be empty
    ```
 5. Tested in mobile viewport — whoever receives this link usually opens it on
    a phone.

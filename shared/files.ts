@@ -126,6 +126,28 @@ export const FILES: FileEntry[] = [
     downloadName: 'Not-Even-Death-Full-Script-PT.pdf',
     contentType: 'application/pdf',
   },
+  // The two language versions share level 10, on purpose: one Laya code opens
+  // both. The teaser is not here — it needs no code and lives on the hotsite.
+  {
+    property: 'laya',
+    slug: 'visual-synopsis-en',
+    title: 'Visual Synopsis — English',
+    description: 'A visual exploration of Laya’s dark world.',
+    level: 10,
+    r2Key: 'laya/01-visual-synopsis-en.pdf',
+    downloadName: 'Laya-Visual-Synopsis-EN.pdf',
+    contentType: 'application/pdf',
+  },
+  {
+    property: 'laya',
+    slug: 'visual-synopsis-pt',
+    title: 'Visual Synopsis — Portuguese',
+    description: 'A visual exploration of Laya’s dark world.',
+    level: 10,
+    r2Key: 'laya/02-visual-synopsis-pt.pdf',
+    downloadName: 'Laya-Visual-Synopsis-PT.pdf',
+    contentType: 'application/pdf',
+  },
 ];
 
 const FILE_BY_KEY: Record<string, FileEntry> = Object.fromEntries(
